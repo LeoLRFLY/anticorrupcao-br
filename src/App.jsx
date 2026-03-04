@@ -19,7 +19,7 @@ async function classificarDeputado(deputado, despesas) {
     const tiposDespesa = [...new Set(despesas.map(d => d.tipoDespesa))];
     const maiorDespesa = Math.max(...despesas.map(d => d.valorLiquido || 0), 0);
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -197,7 +197,7 @@ function TelaUpload({ s, setTela }) {
     if (!texto.trim() && !arquivo) return;
     setAnalisando(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
