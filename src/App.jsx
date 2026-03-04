@@ -292,32 +292,61 @@ export default function AntiCorrupcaoBR() {
     (async () => {
       setCarregando(true);
       try {
-        const res = await fetch(`${CAMARA_API}/deputados?idLegislatura=57&itens=513&ordem=ASC&ordenarPor=nome`);
-        const data = await res.json();
-        const lista = data.dados || [];
+        // Busca paginada — 100 por vez
+        let lista = [];
+        for (let pag = 1; pag <= 6; pag++) {
+          const res = await fetch(
+            `${CAMARA_API}/deputados?idLegislatura=57&itens=100&pagina=${pag}&ordem=ASC&ordenarPor=nome`,
+            { headers: { "Accept": "application/json" } }
+          );
+          if (!res.ok) break;
+          const text = await res.text();
+          const data = JSON.parse(text);
+          const lote = data.dados || [];
+          if (lote.length === 0) break;
+          lista = [...lista, ...lote];
+        }
+
+        if (lista.length === 0) {
+          // Fallback sem idLegislatura
+          const res2 = await fetch(`${CAMARA_API}/deputados?itens=100&ordem=ASC&ordenarPor=nome`, { headers: { "Accept": "application/json" } });
+          const text2 = await res2.text();
+          const data2 = JSON.parse(text2);
+          lista = data2.dados || [];
+        }
+
         setDeputados(lista.map(d => ({ ...d, classificacao: null, score: null, motivo: null, totalGasto: 0 })));
         setCarregando(false);
 
-        // Classifica em lotes — começa pelos primeiros 80
-        const LOTE = 8;
-        const MAX = Math.min(lista.length, 80);
+        // Classifica em lotes de 5
+        const LOTE = 5;
+        const MAX = Math.min(lista.length, 50);
         for (let i = 0; i < MAX; i += LOTE) {
-          const lote = lista.slice(i, i + LOTE);
-          await Promise.all(lote.map(async (dep) => {
+          const loteAtual = lista.slice(i, i + LOTE);
+          await Promise.all(loteAtual.map(async (dep) => {
             try {
-              const r = await fetch(`${CAMARA_API}/deputados/${dep.id}/despesas?ano=2024&itens=100`);
-              const d = await r.json();
+              const r = await fetch(
+                `${CAMARA_API}/deputados/${dep.id}/despesas?ano=2024&itens=100`,
+                { headers: { "Accept": "application/json" } }
+              );
+              const txt = await r.text();
+              const d = JSON.parse(txt);
               const despesas = d.dados || [];
               const totalGasto = despesas.reduce((s, x) => s + (x.valorLiquido || 0), 0);
               const classif = await classificarDeputado(dep, despesas);
               setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classif, totalGasto } : x));
-            } catch {}
+            } catch (e) {
+              setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, classificacao: "ok", score: 10, motivo: "Dados indisponíveis", totalGasto: 0 } : x));
+            }
           }));
-          setProgresso(Math.round(((i + LOTE) / MAX) * 100));
-          await new Promise(r => setTimeout(r, 300));
+          setProgresso(Math.min(99, Math.round(((i + LOTE) / MAX) * 100)));
+          await new Promise(r => setTimeout(r, 600));
         }
         setProgresso(100);
-      } catch { setCarregando(false); }
+      } catch (e) {
+        console.error("Erro:", e);
+        setCarregando(false);
+      }
     })();
   }, []);
 
