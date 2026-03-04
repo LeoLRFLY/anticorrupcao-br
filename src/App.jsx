@@ -315,8 +315,13 @@ export default function AntiCorrupcaoBR() {
           lista = data2.dados || [];
         }
 
-        setDeputados(lista.map(d => ({ ...d, classificacao: null, score: null, motivo: null, totalGasto: 0 })));
+        // Remove duplicatas por ID
+        const vistos = new Set();
+        const listaUnica = lista.filter(d => { if (vistos.has(d.id)) return false; vistos.add(d.id); return true; });
+
+        setDeputados(listaUnica.map(d => ({ ...d, classificacao: null, score: null, motivo: null, totalGasto: 0 })));
         setCarregando(false);
+        lista = listaUnica;
 
         // Classifica em lotes de 5
         const LOTE = 5;
@@ -350,14 +355,24 @@ export default function AntiCorrupcaoBR() {
     })();
   }, []);
 
+  // Gera listas dinâmicas de UF e Partido a partir dos dados reais
+  const ufsDisponiveis = ["Todos", ...Array.from(new Set(deputados.map(d => d.siglaUf).filter(Boolean))).sort()];
+  const partidosDisponiveis = ["Todos", ...Array.from(new Set(deputados.map(d => d.siglaPartido).filter(Boolean))).sort()];
+
+  const buscaNorm = busca.toLowerCase().trim();
   const deputadosFiltrados = deputados.filter(d => {
-    if (busca && !d.nome.toLowerCase().includes(busca.toLowerCase()) && !d.siglaPartido?.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (buscaNorm) {
+      const nomeMatch = d.nome?.toLowerCase().includes(buscaNorm);
+      const partidoMatch = d.siglaPartido?.toLowerCase().includes(buscaNorm);
+      const ufMatch = d.siglaUf?.toLowerCase().includes(buscaNorm);
+      if (!nomeMatch && !partidoMatch && !ufMatch) return false;
+    }
     if (filtroUf !== "Todos" && d.siglaUf !== filtroUf) return false;
     if (filtroPartido !== "Todos" && d.siglaPartido !== filtroPartido) return false;
     if (filtroClassif !== "Todos" && d.classificacao !== filtroClassif) return false;
     return true;
   }).sort((a, b) => {
-    if (ordenar === "nome") return a.nome.localeCompare(b.nome);
+    if (ordenar === "nome") return (a.nome||"").localeCompare(b.nome||"");
     if (ordenar === "score") return (b.score || 0) - (a.score || 0);
     if (ordenar === "gasto") return (b.totalGasto || 0) - (a.totalGasto || 0);
     return 0;
@@ -428,8 +443,8 @@ export default function AntiCorrupcaoBR() {
               style={{ background:"transparent",border:"none",outline:"none",color:"#ccc",fontSize:"11px",fontFamily:"inherit",width:"100%" }}/>
           </div>
           {[
-            {label:"UF", val:filtroUf, set:setFiltroUf, opts:UFS},
-            {label:"Partido", val:filtroPartido, set:setFiltroPartido, opts:PARTIDOS},
+            {label:"UF", val:filtroUf, set:setFiltroUf, opts:ufsDisponiveis},
+            {label:"Partido", val:filtroPartido, set:setFiltroPartido, opts:partidosDisponiveis},
           ].map((f,i)=>(
             <select key={i} value={f.val} onChange={e=>f.set(e.target.value)} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"6px",color:"#ccc",fontSize:"11px",fontFamily:"inherit",padding:"6px 10px",cursor:"pointer",outline:"none" }}>
               {f.opts.map(o=><option key={o} value={o} style={{background:"#161819"}}>{o}</option>)}
