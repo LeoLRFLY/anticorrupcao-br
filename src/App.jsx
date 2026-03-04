@@ -188,20 +188,28 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
   const [carregando, setCarregando] = useState(true);
   const [aba, setAba] = useState("resumo");
   const [fornExpanded, setFornExpanded] = useState(null);
+  const [ano, setAno] = useState(2025);
   const c = COR[dep.classificacao || "loading"];
   const T = s.T;
   const dark = tema === "dark";
 
   useEffect(() => {
     (async () => {
+      setCarregando(true);
+      setFornExpanded(null);
       try {
-        const res = await fetch(`${CAMARA_API}/deputados/${dep.id}/despesas?ano=2024&itens=100`);
-        const data = await res.json();
-        setDespesas(data.dados || []);
+        // Busca até 200 despesas (2 páginas de 100)
+        const [r1, r2] = await Promise.allSettled([
+          fetch(`${CAMARA_API}/deputados/${dep.id}/despesas?ano=${ano}&itens=100&pagina=1`).then(r=>r.json()),
+          fetch(`${CAMARA_API}/deputados/${dep.id}/despesas?ano=${ano}&itens=100&pagina=2`).then(r=>r.json()),
+        ]);
+        const d1 = r1.status==="fulfilled" ? r1.value.dados||[] : [];
+        const d2 = r2.status==="fulfilled" ? r2.value.dados||[] : [];
+        setDespesas([...d1, ...d2]);
       } catch {}
       setCarregando(false);
     })();
-  }, [dep.id]);
+  }, [dep.id, ano]);
 
   const porTipo = despesas.reduce((acc, d) => { acc[d.tipoDespesa] = (acc[d.tipoDespesa]||0)+d.valorLiquido; return acc; }, {});
   const tiposOrdenados = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -227,6 +235,21 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
           <span style={{ color:T.textMuted }}>›</span>
           <span style={{ color:T.textSecondary,fontWeight:"500",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{dep.nome}</span>
         </div>
+        {/* Seletor de ano */}
+        <div style={{ display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px",flexWrap:"wrap" }}>
+          <span style={{ fontSize:"11px",color:T.textLabel,fontWeight:"600",letterSpacing:"0.06em" }}>ANO DE REFERÊNCIA:</span>
+          <div style={{ display:"flex",gap:"6px" }}>
+            {[2022,2023,2024,2025,2026].map(a=>(
+              <button key={a} onClick={()=>setAno(a)} style={{
+                padding:"5px 14px",borderRadius:"20px",border:`1px solid ${a===ano?"#00d4aa":T.inputBorder}`,
+                background:a===ano?"rgba(0,212,170,0.15)":T.tagBg,
+                color:a===ano?"#00d4aa":T.textSecondary,
+                fontSize:"11px",fontFamily:"inherit",fontWeight:"700",cursor:"pointer",transition:"all 0.15s"
+              }}>{a}</button>
+            ))}
+          </div>
+        </div>
+
         <div style={{ display:"flex",gap:"20px",alignItems:"center",background:c.bg,border:`1px solid ${c.border}`,borderRadius:"12px",padding:"22px",marginBottom:"22px" }}>
           <img src={dep.urlFoto} alt="" style={{ width:"72px",height:"72px",borderRadius:"50%",objectFit:"cover",border:`3px solid ${c.dot}`,flexShrink:0 }} />
           <div style={{ flex:1 }}>
