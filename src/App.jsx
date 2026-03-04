@@ -165,10 +165,16 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
     <div style={s.app}>
       <div style={s.grid} />
       <nav style={s.nav}>
-        <div style={s.logo}><IconShield /> ANTICORRUPÇÃO.BR</div>
-        <button onClick={onVoltar} style={{ background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",color:"#ddd",padding:"6px 14px",borderRadius:"6px",fontSize:"11px",fontFamily:"inherit",cursor:"pointer",fontWeight:"600" }}>← VOLTAR</button>
+        <div style={s.logo} onClick={onVoltar}><IconShield /> ANTICORRUPÇÃO.BR</div>
+        <button onClick={onVoltar} style={{ background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",color:"#ddd",padding:"7px 16px",borderRadius:"6px",fontSize:"12px",fontFamily:"inherit",cursor:"pointer",fontWeight:"700",display:"flex",alignItems:"center",gap:"6px" }}>← VOLTAR</button>
       </nav>
       <div style={{ ...s.main, maxWidth: "800px" }}>
+        {/* Breadcrumb */}
+        <div style={{ display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px",color:"#666" }}>
+          <span onClick={onVoltar} style={{ color:"#00d4aa",cursor:"pointer",fontWeight:"600" }}>Deputados</span>
+          <span style={{ color:"#444" }}>›</span>
+          <span style={{ color:"#aaa",fontWeight:"500",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{dep.nome}</span>
+        </div>
         <div style={{ display:"flex",gap:"20px",alignItems:"center",background:c.bg,border:`1px solid ${c.border}`,borderRadius:"12px",padding:"22px",marginBottom:"22px" }}>
           <img src={dep.urlFoto} alt="" style={{ width:"72px",height:"72px",borderRadius:"50%",objectFit:"cover",border:`3px solid ${c.dot}`,flexShrink:0 }} />
           <div style={{ flex:1 }}>
