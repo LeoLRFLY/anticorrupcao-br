@@ -315,10 +315,15 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
                 porForn[d.nomeFornecedor].count += 1;
               });
               // Inclui pagamentos individuais por fornecedor
-              const top = Object.entries(porForn).sort((a,b)=>b[1].total-a[1].total).slice(0,8);
+              const todosOrdenados = Object.entries(porForn).sort((a,b)=>b[1].total-a[1].total);
+              const top = todosOrdenados.slice(0,10);
+              const restante = todosOrdenados.length - 10;
               return (
                 <div style={{ background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"20px" }}>
-                  <div style={{ fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🏆 QUEM MAIS RECEBEU DINHEIRO DESTE DEPUTADO</div>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px" }}>
+                    <div style={{ fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700" }}>🏆 QUEM MAIS RECEBEU DINHEIRO DESTE DEPUTADO</div>
+                    <span style={{ fontSize:"10px",color:T.textMuted,fontWeight:"600" }}>{todosOrdenados.length} fornecedores</span>
+                  </div>
                   <div style={{ fontSize:"10px",color:T.textMuted,marginBottom:"14px" }}>Clique em qualquer fornecedor para ver os pagamentos detalhados e comprovantes</div>
                   {top.map(([nome,info],i)=>{
                     const aberto = fornExpanded === nome;
@@ -391,6 +396,11 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
                       </div>
                     );
                   })}
+                  {restante > 0 && (
+                    <div style={{ marginTop:"12px",padding:"10px 14px",borderRadius:"8px",background:T.tagBg,textAlign:"center",fontSize:"11px",color:T.textSecondary }}>
+                      + {restante} fornecedor{restante>1?"es":""} com valores menores não listados · veja a aba <strong style={{color:"#00d4aa",cursor:"pointer"}} onClick={()=>{}}>💳 DESPESAS</strong> para lista completa
+                    </div>
+                  )}
                 </div>
               );
             })()}
