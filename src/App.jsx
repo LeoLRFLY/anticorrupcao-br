@@ -187,6 +187,7 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
   const [despesas, setDespesas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [aba, setAba] = useState("resumo");
+  const [fornExpanded, setFornExpanded] = useState(null);
   const c = COR[dep.classificacao || "loading"];
   const T = s.T;
   const dark = tema === "dark";
@@ -313,20 +314,83 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
                 porForn[d.nomeFornecedor].total += d.valorLiquido||0;
                 porForn[d.nomeFornecedor].count += 1;
               });
-              const top = Object.entries(porForn).sort((a,b)=>b[1].total-a[1].total).slice(0,5);
+              // Inclui pagamentos individuais por fornecedor
+              const top = Object.entries(porForn).sort((a,b)=>b[1].total-a[1].total).slice(0,8);
               return (
                 <div style={{ background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"20px" }}>
                   <div style={{ fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🏆 QUEM MAIS RECEBEU DINHEIRO DESTE DEPUTADO</div>
-                  {top.map(([nome,info],i)=>(
-                    <div key={i} style={{ display:"flex",alignItems:"center",gap:"12px",padding:"10px 0",borderBottom:i<top.length-1?`1px solid ${T.divider}`:"none" }}>
-                      <div style={{ width:"24px",height:"24px",borderRadius:"50%",background:T.tagBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:"800",color:T.textSecondary,flexShrink:0 }}>{i+1}</div>
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{nome}</div>
-                        <div style={{ fontSize:"10px",color:T.textMuted,marginTop:"2px" }}>{info.count} pagamento{info.count>1?"s":""}</div>
+                  <div style={{ fontSize:"10px",color:T.textMuted,marginBottom:"14px" }}>Clique em qualquer fornecedor para ver os pagamentos detalhados e comprovantes</div>
+                  {top.map(([nome,info],i)=>{
+                    const aberto = fornExpanded === nome;
+                    const pagamentos = despesas.filter(d=>d.nomeFornecedor===nome).sort((a,b)=>new Date(b.dataDocumento)-new Date(a.dataDocumento));
+                    const corVal = info.total>20000?"#ff4d6d":info.total>8000?"#ffd60a":"#00d4aa";
+                    return (
+                      <div key={i} style={{ borderBottom:i<top.length-1?`1px solid ${T.divider}`:"none" }}>
+                        {/* Linha principal — clicável */}
+                        <div onClick={()=>setFornExpanded(aberto?null:nome)}
+                          style={{ display:"flex",alignItems:"center",gap:"12px",padding:"12px 0",cursor:"pointer" }}>
+                          <div style={{ width:"28px",height:"28px",borderRadius:"50%",background:aberto?corVal+"33":T.tagBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"12px",fontWeight:"800",color:aberto?corVal:T.textSecondary,flexShrink:0,transition:"all 0.2s" }}>{i+1}</div>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{nome}</div>
+                            <div style={{ display:"flex",gap:"8px",alignItems:"center",marginTop:"3px",flexWrap:"wrap" }}>
+                              <span style={{ fontSize:"10px",color:T.textMuted }}>{info.count} pagamento{info.count>1?"s":""}  ·  {info.cnpj ? "CNPJ: "+info.cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5") : ""}</span>
+                            </div>
+                          </div>
+                          <div style={{ display:"flex",alignItems:"center",gap:"10px",flexShrink:0 }}>
+                            <div style={{ fontSize:"15px",fontWeight:"800",color:corVal }}>{fmtBRL(info.total)}</div>
+                            <span style={{ fontSize:"16px",color:T.textMuted,transition:"transform 0.2s",transform:aberto?"rotate(90deg)":"rotate(0deg)",display:"inline-block" }}>›</span>
+                          </div>
+                        </div>
+
+                        {/* Pagamentos expandidos */}
+                        {aberto && (
+                          <div style={{ marginBottom:"12px",borderRadius:"8px",overflow:"hidden",border:`1px solid ${T.cardBorder}` }}>
+                            {/* Header */}
+                            <div style={{ display:"grid",gridTemplateColumns:"1fr 100px 100px 44px",gap:"8px",padding:"8px 14px",background:T.tagBg,fontSize:"9px",color:T.textLabel,fontWeight:"700",letterSpacing:"0.08em" }}>
+                              <span>DESCRIÇÃO / DOCUMENTO</span>
+                              <span style={{ textAlign:"right" }}>DATA</span>
+                              <span style={{ textAlign:"right" }}>VALOR</span>
+                              <span style={{ textAlign:"center" }}>DOC</span>
+                            </div>
+                            {pagamentos.map((pg,j)=>{
+                              const data = pg.dataDocumento?.substring(0,10)||"";
+                              const [a2,m2,d2] = data.split("-");
+                              const dataFmt = data ? `${d2}/${m2}/${a2}` : "—";
+                              const cvp = corValor(pg.valorLiquido||0);
+                              return (
+                                <div key={j} style={{ display:"grid",gridTemplateColumns:"1fr 100px 100px 44px",gap:"8px",padding:"10px 14px",borderTop:`1px solid ${T.divider}`,background:j%2===0?T.cardBg:"transparent",alignItems:"center" }}>
+                                  <div style={{ minWidth:0 }}>
+                                    <div style={{ fontSize:"11px",color:T.textPrimary,fontWeight:"600",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{pg.tipoDespesa||"Sem categoria"}</div>
+                                    {pg.tipoDocumento && <div style={{ fontSize:"9px",color:T.textMuted,marginTop:"2px" }}>{pg.tipoDocumento}{pg.numDocumento?" · Nº "+pg.numDocumento:""}</div>}
+                                  </div>
+                                  <div style={{ textAlign:"right",fontSize:"11px",color:T.textSecondary }}>{dataFmt}</div>
+                                  <div style={{ textAlign:"right",fontSize:"12px",fontWeight:"800",color:cvp.cor }}>{fmtBRL(pg.valorLiquido||0)}</div>
+                                  <div style={{ textAlign:"center" }}>
+                                    {pg.urlDocumento ? (
+                                      <a href={pg.urlDocumento} target="_blank" rel="noopener noreferrer"
+                                        title="Ver comprovante (PDF)"
+                                        style={{ display:"inline-flex",alignItems:"center",justifyContent:"center",width:"28px",height:"28px",borderRadius:"6px",background:"rgba(0,212,170,0.15)",color:"#00d4aa",textDecoration:"none",fontSize:"13px",border:"1px solid rgba(0,212,170,0.3)" }}>
+                                        📄
+                                      </a>
+                                    ) : (
+                                      <span style={{ display:"inline-flex",alignItems:"center",justifyContent:"center",width:"28px",height:"28px",borderRadius:"6px",background:T.tagBg,color:T.textMuted,fontSize:"11px" }} title="Sem comprovante">—</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {/* Subtotal */}
+                            <div style={{ display:"grid",gridTemplateColumns:"1fr 100px 100px 44px",gap:"8px",padding:"10px 14px",background:corVal+"15",borderTop:`2px solid ${corVal}44` }}>
+                              <div style={{ fontSize:"11px",fontWeight:"800",color:T.textPrimary }}>TOTAL PAGO — {info.count} pagamento{info.count>1?"s":""}</div>
+                              <div></div>
+                              <div style={{ textAlign:"right",fontSize:"14px",fontWeight:"800",color:corVal }}>{fmtBRL(info.total)}</div>
+                              <div></div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div style={{ fontSize:"14px",fontWeight:"800",color:info.total>20000?"#ff4d6d":info.total>8000?"#ffd60a":"#aaa",flexShrink:0 }}>{fmtBRL(info.total)}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })()}
