@@ -87,8 +87,9 @@ const IconAlert = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const IconUpload = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
 
 // ── Card Deputado ─────────────────────────────────────────────────────────────
-function CardDeputado({ dep, onClick }) {
+function CardDeputado({ dep, onClick, T }) {
   const c = COR[dep.classificacao || "loading"];
+  const isDark = !T || T.appBg === "#0a0c0f";
   return (
     <div onClick={() => onClick(dep)} style={{
       display: "flex", alignItems: "center", gap: "12px",
@@ -99,18 +100,18 @@ function CardDeputado({ dep, onClick }) {
       <div style={{ position: "relative", flexShrink: 0 }}>
         <img src={dep.urlFoto} alt="" onError={e => { e.target.style.display="none"; }}
           style={{ width: "42px", height: "42px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${c.dot}`, display: "block" }} />
-        <div style={{ position: "absolute", bottom: 0, right: 0, width: "9px", height: "9px", borderRadius: "50%", background: c.dot, border: "2px solid #0a0c0f" }} />
+        <div style={{ position: "absolute", bottom: 0, right: 0, width: "9px", height: "9px", borderRadius: "50%", background: c.dot, border: `2px solid ${T?.appBg||"#0a0c0f"}` }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "13px", fontWeight: "700", color: "#f2f2f2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dep.nome}</div>
-        <div style={{ fontSize: "11px", color: "#999", marginTop: "2px", fontWeight: "500" }}>{dep.siglaPartido} · {dep.siglaUf}</div>
+        <div style={{ fontSize: "13px", fontWeight: "700", color: T?.textPrimary||"#f2f2f2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dep.nome}</div>
+        <div style={{ fontSize: "11px", color: T?.textSecondary||"#999", marginTop: "2px", fontWeight: "500" }}>{dep.siglaPartido} · {dep.siglaUf}</div>
         {dep.motivo && <div style={{ fontSize: "10px", color: c.text, marginTop: "3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dep.motivo}</div>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
         <span style={{ fontSize: "9px", padding: "2px 8px", borderRadius: "3px", background: `${c.dot}33`, color: c.dot, fontWeight: "800", letterSpacing: "0.08em" }}>{c.label}</span>
-        {dep.totalGasto > 0 && <span style={{ fontSize: "10px", color: "#bbb", fontWeight: "600" }}>{fmtBRL(dep.totalGasto)}</span>}
+        {dep.totalGasto > 0 && <span style={{ fontSize: "10px", color: T?.textSecondary||"#bbb", fontWeight: "600" }}>{fmtBRL(dep.totalGasto)}</span>}
       </div>
-      <span style={{ color: "#777" }}><IconChevron /></span>
+      <span style={{ color: T?.textMuted||"#777" }}><IconChevron /></span>
     </div>
   );
 }
@@ -182,11 +183,13 @@ function gerarAlertas(despesas) {
 }
 
 // ── Perfil Deputado ───────────────────────────────────────────────────────────
-function TelaPerfilDeputado({ dep, onVoltar, s }) {
+function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
   const [despesas, setDespesas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [aba, setAba] = useState("resumo");
   const c = COR[dep.classificacao || "loading"];
+  const T = s.T;
+  const dark = tema === "dark";
 
   useEffect(() => {
     (async () => {
@@ -211,14 +214,17 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
       <div style={s.grid} />
       <nav style={s.nav}>
         <div style={s.logo} onClick={onVoltar}><IconShield /> ANTICORRUPÇÃO.BR</div>
-        <button onClick={onVoltar} style={{ background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",color:"#ddd",padding:"7px 16px",borderRadius:"6px",fontSize:"12px",fontFamily:"inherit",cursor:"pointer",fontWeight:"700",display:"flex",alignItems:"center",gap:"6px" }}>← VOLTAR</button>
+        <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
+          <button onClick={()=>setTema(dark?"light":"dark")} style={{ background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit" }}>{dark?"☀️":"🌙"}<span style={{ fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em" }}>{dark?"CLARO":"ESCURO"}</span></button>
+          <button onClick={onVoltar} style={{ background:T.tagBg,border:`1px solid ${T.inputBorder}`,color:T.textPrimary,padding:"7px 16px",borderRadius:"6px",fontSize:"12px",fontFamily:"inherit",cursor:"pointer",fontWeight:"700" }}>← VOLTAR</button>
+        </div>
       </nav>
       <div style={{ ...s.main, maxWidth: "800px" }}>
         {/* Breadcrumb */}
-        <div style={{ display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px",color:"#666" }}>
+        <div style={{ display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px" }}>
           <span onClick={onVoltar} style={{ color:"#00d4aa",cursor:"pointer",fontWeight:"600" }}>Deputados</span>
-          <span style={{ color:"#444" }}>›</span>
-          <span style={{ color:"#aaa",fontWeight:"500",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{dep.nome}</span>
+          <span style={{ color:T.textMuted }}>›</span>
+          <span style={{ color:T.textSecondary,fontWeight:"500",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{dep.nome}</span>
         </div>
         <div style={{ display:"flex",gap:"20px",alignItems:"center",background:c.bg,border:`1px solid ${c.border}`,borderRadius:"12px",padding:"22px",marginBottom:"22px" }}>
           <img src={dep.urlFoto} alt="" style={{ width:"72px",height:"72px",borderRadius:"50%",objectFit:"cover",border:`3px solid ${c.dot}`,flexShrink:0 }} />
@@ -226,26 +232,26 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
             <h2 style={{ margin:0,fontSize:"20px",fontWeight:"800",color:"#ffffff",letterSpacing:"-0.01em" }}>{dep.nome}</h2>
             <div style={{ display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap" }}>
               {[dep.siglaPartido, dep.siglaUf, "Deputado Federal"].map((t,i)=>(
-                <span key={i} style={{ fontSize:"11px",padding:"4px 12px",borderRadius:"4px",background:"rgba(255,255,255,0.12)",color:"#eee",letterSpacing:"0.06em",fontWeight:"700" }}>{t}</span>
+                <span key={i} style={{ fontSize:"11px",padding:"4px 12px",borderRadius:"4px",background:T.tagBg,color:T.tagText,letterSpacing:"0.06em",fontWeight:"700" }}>{t}</span>
               ))}
             </div>
             {dep.motivo && <div style={{ marginTop:"10px",fontSize:"12px",color:c.text,fontWeight:"600" }}>⚡ {dep.motivo}</div>}
           </div>
           <div style={{ textAlign:"center",flexShrink:0 }}>
             <div style={{ fontSize:"32px",fontWeight:"800",color:c.dot,lineHeight:1 }}>{dep.score||"—"}</div>
-            <div style={{ fontSize:"10px",color:"#bbb",letterSpacing:"0.08em",marginTop:"4px",fontWeight:"600" }}>SCORE IA</div>
+            <div style={{ fontSize:"10px",color:T.textSecondary,letterSpacing:"0.08em",marginTop:"4px",fontWeight:"600" }}>SCORE IA</div>
             <div style={{ fontSize:"11px",fontWeight:"800",color:c.text,marginTop:"3px",letterSpacing:"0.06em" }}>{c.label}</div>
           </div>
         </div>
 
         {/* Abas */}
-        <div style={{ display:"flex",gap:"4px",borderBottom:"1px solid rgba(255,255,255,0.12)",marginBottom:"20px" }}>
+        <div style={{ display:"flex",gap:"4px",borderBottom:`1px solid ${T.divider}`,marginBottom:"20px" }}>
           {[
             {id:"resumo",   label:"🔍 RESUMO"},
             {id:"despesas", label:"💳 DESPESAS"},
             {id:"grafico",  label:"📊 CATEGORIAS"},
           ].map(a=>(
-            <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"10px 16px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:"#888",fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
+            <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"10px 16px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:T.textSecondary,fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
           ))}
         </div>
 
@@ -264,18 +270,18 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
                 { label:"Pagamentos realizados", valor:despesas.length, icon:"🧾", sub:"Nº de notas fiscais", cor:"#aaa" },
                 { label:"Empresas diferentes", valor:fornecedores, icon:"🏢", sub:"Fornecedores únicos", cor: fornecedores>40?"#ff4d6d":fornecedores<5&&despesas.length>10?"#ffd60a":"#aaa" },
               ].map((item,i)=>(
-                <div key={i} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"16px",textAlign:"center" }}>
+                <div key={i} style={{ background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"10px",padding:"16px",textAlign:"center" }}>
                   <div style={{ fontSize:"22px",marginBottom:"6px" }}>{item.icon}</div>
                   <div style={{ fontSize:"18px",fontWeight:"800",color:item.cor }}>{item.valor}</div>
-                  <div style={{ fontSize:"11px",color:"#ddd",fontWeight:"600",marginTop:"4px" }}>{item.label}</div>
-                  <div style={{ fontSize:"10px",color:"#666",marginTop:"2px" }}>{item.sub}</div>
+                  <div style={{ fontSize:"11px",color:T.textPrimary,fontWeight:"600",marginTop:"4px" }}>{item.label}</div>
+                  <div style={{ fontSize:"10px",color:T.textMuted,marginTop:"2px" }}>{item.sub}</div>
                 </div>
               ))}
             </div>
 
             {/* Alertas explicativos */}
-            <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"20px" }}>
-              <div style={{ fontSize:"11px",color:"#888",letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🤖 ANÁLISE DA IA — O QUE ENCONTRAMOS</div>
+            <div style={{ background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"20px" }}>
+              <div style={{ fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🤖 ANÁLISE DA IA — O QUE ENCONTRAMOS</div>
               <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
                 {alertas.map((a,i)=>{
                   const cores = {
@@ -309,14 +315,14 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
               });
               const top = Object.entries(porForn).sort((a,b)=>b[1].total-a[1].total).slice(0,5);
               return (
-                <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"20px" }}>
-                  <div style={{ fontSize:"11px",color:"#888",letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🏆 QUEM MAIS RECEBEU DINHEIRO DESTE DEPUTADO</div>
+                <div style={{ background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"20px" }}>
+                  <div style={{ fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🏆 QUEM MAIS RECEBEU DINHEIRO DESTE DEPUTADO</div>
                   {top.map(([nome,info],i)=>(
-                    <div key={i} style={{ display:"flex",alignItems:"center",gap:"12px",padding:"10px 0",borderBottom:i<top.length-1?"1px solid rgba(255,255,255,0.05)":"none" }}>
-                      <div style={{ width:"24px",height:"24px",borderRadius:"50%",background:"rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:"800",color:"#888",flexShrink:0 }}>{i+1}</div>
+                    <div key={i} style={{ display:"flex",alignItems:"center",gap:"12px",padding:"10px 0",borderBottom:i<top.length-1?`1px solid ${T.divider}`:"none" }}>
+                      <div style={{ width:"24px",height:"24px",borderRadius:"50%",background:T.tagBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:"800",color:T.textSecondary,flexShrink:0 }}>{i+1}</div>
                       <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ fontSize:"12px",fontWeight:"700",color:"#f0f0f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{nome}</div>
-                        <div style={{ fontSize:"10px",color:"#666",marginTop:"2px" }}>{info.count} pagamento{info.count>1?"s":""}</div>
+                        <div style={{ fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{nome}</div>
+                        <div style={{ fontSize:"10px",color:T.textMuted,marginTop:"2px" }}>{info.count} pagamento{info.count>1?"s":""}</div>
                       </div>
                       <div style={{ fontSize:"14px",fontWeight:"800",color:info.total>20000?"#ff4d6d":info.total>8000?"#ffd60a":"#aaa",flexShrink:0 }}>{fmtBRL(info.total)}</div>
                     </div>
@@ -340,18 +346,18 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
               const [ano,mes,dia] = data.split("-");
               const dataFmt = data ? `${dia}/${mes}/${ano}` : "—";
               return (
-                <div key={i} style={{ display:"flex",gap:"14px",alignItems:"center",background:"rgba(255,255,255,0.04)",borderLeft:`3px solid ${cv.cor}`,border:`1px solid rgba(255,255,255,0.08)`,borderRadius:"8px",padding:"14px 16px" }}>
+                <div key={i} style={{ display:"flex",gap:"14px",alignItems:"center",background:T.cardBg,borderLeft:`3px solid ${cv.cor}`,border:`1px solid ${T.cardBorder}`,borderRadius:"8px",padding:"14px 16px" }}>
                   <div style={{ fontSize:"22px",flexShrink:0,width:"32px",textAlign:"center" }}>{icone}</div>
                   <div style={{ flex:1,minWidth:0 }}>
-                    <div style={{ fontSize:"13px",fontWeight:"700",color:"#f5f5f5",marginBottom:"5px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
+                    <div style={{ fontSize:"13px",fontWeight:"700",color:T.textPrimary,marginBottom:"5px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
                       {d.nomeFornecedor || "Fornecedor não informado"}
                     </div>
                     <div style={{ display:"flex",gap:"6px",flexWrap:"wrap",alignItems:"center" }}>
-                      <span style={{ fontSize:"10px",color:"#ddd",background:"rgba(255,255,255,0.08)",padding:"2px 8px",borderRadius:"3px",fontWeight:"600" }}>
+                      <span style={{ fontSize:"10px",color:T.tagText,background:T.tagBg,padding:"2px 8px",borderRadius:"3px",fontWeight:"600" }}>
                         {d.tipoDespesa?.substring(0,38) || "Sem categoria"}
                       </span>
                       {d.cnpjCpfFornecedor && (
-                        <span style={{ fontSize:"10px",color:"#777",fontFamily:"monospace" }}>
+                        <span style={{ fontSize:"10px",color:T.textMuted,fontFamily:"monospace" }}>
                           CNPJ: {d.cnpjCpfFornecedor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5")}
                         </span>
                       )}
@@ -368,21 +374,21 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
           </div>
 
         ) : (
-          <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"22px" }}>
-            <div style={{ fontSize:"11px",color:"#aaa",letterSpacing:"0.1em",marginBottom:"20px",fontWeight:"700" }}>📊 ONDE O DINHEIRO FOI GASTO — 2024</div>
+          <div style={{ background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"22px" }}>
+            <div style={{ fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",marginBottom:"20px",fontWeight:"700" }}>📊 ONDE O DINHEIRO FOI GASTO — 2024</div>
             {tiposOrdenados.map(([tipo,valor],i)=>(
               <div key={i} style={{ marginBottom:"16px" }}>
                 <div style={{ display:"flex",justifyContent:"space-between",marginBottom:"6px",alignItems:"center" }}>
                   <span style={{ fontSize:"12px",color:"#ddd",fontWeight:"600",display:"flex",alignItems:"center",gap:"8px" }}>
                     <span>{iconeDespesa(tipo)}</span>
-                    <span>{tipo.substring(0,42)}</span>
+                    <span style={{ color:T.textPrimary }}>{tipo.substring(0,42)}</span>
                   </span>
                   <span style={{ fontSize:"13px",fontWeight:"800",color:"#f0f0f0",flexShrink:0,marginLeft:"8px" }}>{fmtBRL(valor)}</span>
                 </div>
-                <div style={{ height:"7px",background:"rgba(255,255,255,0.07)",borderRadius:"4px" }}>
+                <div style={{ height:"7px",background:T.divider,borderRadius:"4px" }}>
                   <div style={{ height:"100%",borderRadius:"4px",width:`${(valor/maxV)*100}%`,background:`linear-gradient(90deg,${c.dot},${c.dot}88)`,transition:"width 0.5s" }} />
                 </div>
-                <div style={{ fontSize:"10px",color:"#555",marginTop:"4px" }}>{Math.round((valor/total)*100)}% do total gasto</div>
+                <div style={{ fontSize:"10px",color:T.textMuted,marginTop:"4px" }}>{Math.round((valor/total)*100)}% do total gasto</div>
               </div>
             ))}
           </div>
@@ -393,7 +399,7 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
 }
 
 // ── Tela Upload ───────────────────────────────────────────────────────────────
-function TelaUpload({ s, setTela }) {
+function TelaUpload({ s, setTela, tema, setTema }) {
   const [texto, setTexto] = useState("");
   const [arquivo, setArquivo] = useState(null);
   const [analisando, setAnalisando] = useState(false);
@@ -485,15 +491,48 @@ export default function AntiCorrupcaoBR() {
   const [filtroClassif, setFiltroClassif] = useState("Todos");
   const [ordenar, setOrdenar] = useState("nome");
   const [depSelecionado, setDepSelecionado] = useState(null);
+  const [tema, setTema] = useState("dark");
+
+  const dark = tema === "dark";
+  const T = {
+    // Backgrounds
+    appBg:      dark ? "#0a0c0f"                    : "#f0f2f5",
+    navBg:      dark ? "rgba(10,12,15,0.97)"        : "rgba(248,249,252,0.97)",
+    navBorder:  dark ? "rgba(0,212,170,0.1)"        : "rgba(0,170,130,0.2)",
+    cardBg:     dark ? "rgba(255,255,255,0.04)"     : "rgba(255,255,255,0.9)",
+    cardBorder: dark ? "rgba(255,255,255,0.08)"     : "rgba(0,0,0,0.08)",
+    inputBg:    dark ? "rgba(255,255,255,0.04)"     : "#ffffff",
+    inputBorder:dark ? "rgba(255,255,255,0.1)"      : "rgba(0,0,0,0.15)",
+    selectBg:   dark ? "#0f1115"                    : "#ffffff",
+    gridColor:  dark ? "rgba(0,212,170,0.025)"      : "rgba(0,170,130,0.04)",
+    // Textos
+    textPrimary:  dark ? "#f2f2f2"  : "#111111",
+    textSecondary:dark ? "#999"     : "#555555",
+    textMuted:    dark ? "#666"     : "#aaaaaa",
+    textLabel:    dark ? "#888"     : "#777777",
+    // Accents
+    accent:     "#00d4aa",
+    accentDim:  dark ? "rgba(0,212,170,0.1)"  : "rgba(0,170,130,0.12)",
+    accentBorder:dark? "rgba(0,212,170,0.25)" : "rgba(0,170,130,0.35)",
+    // Separador
+    divider:    dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)",
+    // Tag/badge
+    tagBg:      dark ? "rgba(255,255,255,0.1)"  : "rgba(0,0,0,0.07)",
+    tagText:    dark ? "#eee"   : "#333",
+    // Sub-cards
+    subCardBg:  dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.03)",
+    subCardBorder: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)",
+  };
 
   const s = {
-    app: { minHeight:"100vh",background:"#0a0c0f",color:"#e8e8e8",fontFamily:"'IBM Plex Mono','Courier New',monospace" },
-    grid: { position:"fixed",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:"linear-gradient(rgba(0,212,170,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,170,0.025) 1px,transparent 1px)",backgroundSize:"40px 40px" },
-    nav: { position:"sticky",top:0,zIndex:100,background:"rgba(10,12,15,0.97)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(0,212,170,0.1)",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:"54px" },
-    logo: { display:"flex",alignItems:"center",gap:"8px",color:"#00d4aa",fontWeight:"700",fontSize:"13px",letterSpacing:"0.08em",cursor:"pointer" },
-    navLinks: { display:"flex",gap:"4px" },
-    navBtn: (a) => ({ padding:"5px 12px",borderRadius:"4px",background:a?"rgba(0,212,170,0.1)":"transparent",border:a?"1px solid rgba(0,212,170,0.25)":"1px solid transparent",color:a?"#00d4aa":"#666",fontSize:"10px",fontFamily:"inherit",fontWeight:"600",letterSpacing:"0.06em",cursor:"pointer" }),
+    app: { minHeight:"100vh", background:T.appBg, color:T.textPrimary, fontFamily:"'IBM Plex Mono','Courier New',monospace", transition:"background 0.3s,color 0.3s" },
+    grid: { position:"fixed",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:`linear-gradient(${T.gridColor} 1px,transparent 1px),linear-gradient(90deg,${T.gridColor} 1px,transparent 1px)`,backgroundSize:"40px 40px" },
+    nav: { position:"sticky",top:0,zIndex:100,background:T.navBg,backdropFilter:"blur(12px)",borderBottom:`1px solid ${T.navBorder}`,padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:"54px" },
+    logo: { display:"flex",alignItems:"center",gap:"8px",color:T.accent,fontWeight:"700",fontSize:"13px",letterSpacing:"0.08em",cursor:"pointer" },
+    navLinks: { display:"flex",gap:"4px",alignItems:"center" },
+    navBtn: (a) => ({ padding:"5px 12px",borderRadius:"4px",background:a?T.accentDim:"transparent",border:a?`1px solid ${T.accentBorder}`:"1px solid transparent",color:a?T.accent:T.textMuted,fontSize:"10px",fontFamily:"inherit",fontWeight:"600",letterSpacing:"0.06em",cursor:"pointer" }),
     main: { position:"relative",zIndex:1,maxWidth:"1000px",margin:"0 auto",padding:"28px 20px" },
+    T,
   };
 
   useEffect(() => {
@@ -591,8 +630,8 @@ export default function AntiCorrupcaoBR() {
   const contAlerta = deputados.filter(d => d.classificacao === "alerta").length;
   const contSuspeito = deputados.filter(d => d.classificacao === "suspeito").length;
 
-  if (depSelecionado) return <TelaPerfilDeputado dep={depSelecionado} onVoltar={() => setDepSelecionado(null)} s={s} />;
-  if (tela === "upload") return <TelaUpload s={s} setTela={setTela} />;
+  if (depSelecionado) return <TelaPerfilDeputado dep={depSelecionado} onVoltar={() => setDepSelecionado(null)} s={s} tema={tema} setTema={setTema} />;
+  if (tela === "upload") return <TelaUpload s={s} setTela={setTela} tema={tema} setTema={setTema} />;
 
   return (
     <div style={s.app}>
@@ -602,23 +641,24 @@ export default function AntiCorrupcaoBR() {
         <div style={s.navLinks}>
           <button style={s.navBtn(true)}>DEPUTADOS</button>
           <button style={s.navBtn(false)} onClick={() => setTela("upload")}>UPLOAD DOC</button>
+          <button onClick={()=>setTema(dark?"light":"dark")} style={{ marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit" }}>{dark?"☀️":"🌙"}<span style={{ fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em" }}>{dark?"CLARO":"ESCURO"}</span></button>
         </div>
       </nav>
 
       <div style={s.main}>
         <div style={{ marginBottom:"20px" }}>
-          <div style={{ fontSize:"10px",color:"#777",letterSpacing:"0.12em",marginBottom:"5px" }}>LEGISLATURA 57 · DADOS REAIS · API CÂMARA DOS DEPUTADOS</div>
-          <h1 style={{ margin:0,fontSize:"22px",fontWeight:"800",color:"#ffffff" }}>Deputados Federais</h1>
+          <div style={{ fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"5px" }}>LEGISLATURA 57 · DADOS REAIS · API CÂMARA DOS DEPUTADOS</div>
+          <h1 style={{ margin:0,fontSize:"22px",fontWeight:"800",color:T.textPrimary }}>Deputados Federais</h1>
         </div>
 
         {/* Barra progresso IA */}
         {progresso < 100 && !carregando && (
-          <div style={{ marginBottom:"16px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"8px",padding:"12px 16px" }}>
+          <div style={{ marginBottom:"16px",background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"8px",padding:"12px 16px" }}>
             <div style={{ display:"flex",justifyContent:"space-between",marginBottom:"7px" }}>
-              <span style={{ fontSize:"10px",color:"#aaa",letterSpacing:"0.08em",fontWeight:"600" }}>🤖 IA CLASSIFICANDO DEPUTADOS...</span>
+              <span style={{ fontSize:"10px",color:T.textSecondary,letterSpacing:"0.08em",fontWeight:"600" }}>🤖 IA CLASSIFICANDO DEPUTADOS...</span>
               <span style={{ fontSize:"10px",color:"#00d4aa",fontWeight:"700" }}>{progresso}%</span>
             </div>
-            <div style={{ height:"3px",background:"rgba(255,255,255,0.05)",borderRadius:"2px" }}>
+            <div style={{ height:"3px",background:T.divider,borderRadius:"2px" }}>
               <div style={{ height:"100%",width:`${progresso}%`,background:"linear-gradient(90deg,#00d4aa,#00a882)",borderRadius:"2px",transition:"width 0.4s" }}/>
             </div>
           </div>
@@ -633,40 +673,40 @@ export default function AntiCorrupcaoBR() {
             { label:"🔴 SUSPEITO",valor:contSuspeito,    cor:"#ff2d55", key:"suspeito" },
           ].map((item,i) => (
             <div key={i} onClick={() => setFiltroClassif(filtroClassif===item.key&&i>0?"Todos":item.key)} style={{
-              background: filtroClassif===item.key&&i>0 ? `${item.cor}11` : "rgba(255,255,255,0.02)",
-              border: `1px solid ${filtroClassif===item.key&&i>0 ? item.cor+"33" : "rgba(255,255,255,0.07)"}`,
+              background: filtroClassif===item.key&&i>0 ? `${item.cor}11` : T.subCardBg,
+              border: `1px solid ${filtroClassif===item.key&&i>0 ? item.cor+"33" : T.divider}`,
               borderTop: `2px solid ${item.cor}`, borderRadius:"8px", padding:"10px 14px",
               cursor:"pointer", textAlign:"center",
             }}>
               <div style={{ fontSize:"20px",fontWeight:"800",color:item.cor }}>{item.valor}</div>
-              <div style={{ fontSize:"9px",color:"#999",letterSpacing:"0.08em",marginTop:"2px",fontWeight:"600" }}>{item.label}</div>
+              <div style={{ fontSize:"9px",color:T.textLabel,letterSpacing:"0.08em",marginTop:"2px",fontWeight:"600" }}>{item.label}</div>
             </div>
           ))}
         </div>
 
         {/* Filtros */}
-        <div style={{ display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"8px",padding:"12px 14px" }}>
-          <div style={{ display:"flex",alignItems:"center",gap:"7px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"6px",padding:"6px 10px",flex:"1",minWidth:"150px" }}>
+        <div style={{ display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"8px",padding:"12px 14px" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:"7px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",flex:"1",minWidth:"150px" }}>
             <IconSearch/>
             <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar deputado ou partido..."
-              style={{ background:"transparent",border:"none",outline:"none",color:"#ccc",fontSize:"11px",fontFamily:"inherit",width:"100%" }}/>
+              style={{ background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",width:"100%" }}/>
           </div>
           {[
             {label:"UF", val:filtroUf, set:setFiltroUf, opts:ufsDisponiveis},
             {label:"Partido", val:filtroPartido, set:setFiltroPartido, opts:partidosDisponiveis},
           ].map((f,i)=>(
-            <select key={i} value={f.val} onChange={e=>f.set(e.target.value)} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"6px",color:"#ccc",fontSize:"11px",fontFamily:"inherit",padding:"6px 10px",cursor:"pointer",outline:"none" }}>
-              {f.opts.map(o=><option key={o} value={o} style={{background:"#161819"}}>{o}</option>)}
+            <select key={i} value={f.val} onChange={e=>f.set(e.target.value)} style={{ background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",padding:"6px 10px",cursor:"pointer",outline:"none" }}>
+              {f.opts.map(o=><option key={o} value={o} style={{background:T.selectBg,color:T.textPrimary}}>{o}</option>)}
             </select>
           ))}
-          <select value={ordenar} onChange={e=>setOrdenar(e.target.value)} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"6px",color:"#ccc",fontSize:"11px",fontFamily:"inherit",padding:"6px 10px",cursor:"pointer",outline:"none" }}>
-            <option value="nome" style={{background:"#161819"}}>A–Z</option>
-            <option value="score" style={{background:"#161819"}}>Maior risco</option>
-            <option value="gasto" style={{background:"#161819"}}>Maior gasto</option>
+          <select value={ordenar} onChange={e=>setOrdenar(e.target.value)} style={{ background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",padding:"6px 10px",cursor:"pointer",outline:"none" }}>
+            <option value="nome" style={{background:T.selectBg,color:T.textPrimary}}>A–Z</option>
+            <option value="score" style={{background:T.selectBg,color:T.textPrimary}}>Maior risco</option>
+            <option value="gasto" style={{background:T.selectBg,color:T.textPrimary}}>Maior gasto</option>
           </select>
         </div>
 
-        <div style={{ fontSize:"10px",color:"#888",marginBottom:"10px",letterSpacing:"0.06em",fontWeight:"600" }}>
+        <div style={{ fontSize:"10px",color:T.textLabel,marginBottom:"10px",letterSpacing:"0.06em",fontWeight:"600" }}>
           {deputadosFiltrados.length} DEPUTADOS ENCONTRADOS
         </div>
 
@@ -682,7 +722,7 @@ export default function AntiCorrupcaoBR() {
           </div>
         ) : (
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"7px" }}>
-            {deputadosFiltrados.map(dep => <CardDeputado key={dep.id} dep={dep} onClick={setDepSelecionado}/>)}
+            {deputadosFiltrados.map(dep => <CardDeputado key={dep.id} dep={dep} onClick={setDepSelecionado} T={T}/>)}
           </div>
         )}
       </div>
