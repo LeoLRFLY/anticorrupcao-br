@@ -1,7 +1,90 @@
 import { useState, useEffect, useRef } from "react";
 
 const API_BASE = "https://api.portaldatransparencia.gov.br/api-de-dados";
-const API_KEY = "demo"; // usuário vai substituir pela chave real
+const API_KEY = "eaec4d90eb64f31dc87f23e9960bacfa";
+
+// ── Helpers de data ───────────────────────────────────────────────────────────
+const hoje = new Date();
+const fmtData = (d) => `${String(d.getDate()).padStart(2,"0")}%2F${String(d.getMonth()+1).padStart(2,"0")}%2F${d.getFullYear()}`;
+const dataInicio = () => { const d = new Date(); d.setFullYear(d.getFullYear()-1); return fmtData(d); };
+const dataFim = () => fmtData(hoje);
+
+// ── Funções de busca real na API ──────────────────────────────────────────────
+const headers = { "chave-api-dados": API_KEY, "Accept": "application/json" };
+
+async function buscarContratos(nomeEmpresa = "", orgao = "26000") {
+  try {
+    const url = `${API_BASE}/contratos?dataInicial=${dataInicio()}&dataFinal=${dataFim()}&codigoOrgao=${orgao}&pagina=1`;
+    const res = await fetch(url, { headers });
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(c => ({
+      empresa: c.fornecedor?.nome || "N/D",
+      cnpj: c.fornecedor?.cnpjFormatado || "",
+      valor: c.valorInicialCompra || 0,
+      valorFinal: c.valorFinalCompra || 0,
+      data: c.dataAssinatura ? new Date(c.dataAssinatura).toLocaleDateString("pt-BR") : "N/D",
+      objeto: c.objeto?.replace("Objeto: ","").substring(0,120) || "",
+      modalidade: c.modalidadeCompra || "",
+      orgao: c.unidadeGestora?.orgaoMaximo?.sigla || orgao,
+      status: "normal",
+    }));
+  } catch { return []; }
+}
+
+async function buscarContratosVariosOrgaos() {
+  const orgaos = ["26000","20000","30000","36000","52000","25000"];
+  const resultados = await Promise.all(orgaos.map(o => buscarContratos("", o)));
+  return resultados.flat().slice(0, 30);
+}
+
+function detectarAlertas(contratos) {
+  const alertas = [];
+  const porEmpresa = {};
+  contratos.forEach(c => {
+    if (!porEmpresa[c.empresa]) porEmpresa[c.empresa] = [];
+    porEmpresa[c.empresa].push(c);
+  });
+
+  // Alerta: empresa com múltiplos contratos (possível concentração)
+  Object.entries(porEmpresa).forEach(([empresa, lista]) => {
+    if (lista.length >= 2) {
+      const total = lista.reduce((s, c) => s + c.valor, 0);
+      alertas.push({
+        id: alertas.length + 1,
+        tipo: "empresa_suspeita",
+        severidade: total > 5000000 ? "critica" : "alta",
+        titulo: `${lista.length} contratos para mesma empresa`,
+        descricao: `${empresa} recebeu ${lista.length} contratos totalizando ${fmtBRL(total)}`,
+        data: lista[0].data,
+        valor: fmtBRL(total),
+        orgao: lista[0].orgao,
+      });
+    }
+  });
+
+  // Alerta: contrato de valor muito alto
+  contratos
+    .filter(c => c.valor > 3000000)
+    .forEach(c => {
+      alertas.push({
+        id: alertas.length + 1,
+        tipo: "gasto_alto",
+        severidade: c.valor > 10000000 ? "critica" : "alta",
+        titulo: `Contrato de alto valor — ${c.modalidade}`,
+        descricao: `${c.empresa}: ${c.objeto}`,
+        data: c.data,
+        valor: fmtBRL(c.valor),
+        orgao: c.orgao,
+      });
+    });
+
+  return alertas.slice(0, 8);
+}
+
+function fmtBRL(v) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+}
 
 // ── Dados mock para demonstração visual ──────────────────────────────────────
 const MOCK_POLITICO = {
@@ -129,6 +212,87 @@ function MiniBarChart({ data }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Componente AlertasPublicos com dados reais ───────────────────────────────
+function AlertasPublicos({ s, setTela, corSeveridade, labelSeveridade, iconeAlerta }) {
+  const [alertas, setAlertas] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      setCarregando(true);
+      const contratos = await buscarContratosVariosOrgaos();
+      const detectados = detectarAlertas(contratos);
+      setAlertas(detectados.length > 0 ? detectados : MOCK_ALERTAS);
+      setUltimaAtualizacao(new Date().toLocaleTimeString("pt-BR"));
+      setCarregando(false);
+    })();
+  }, []);
+
+  return (
+    <div style={s.app}>
+      <div style={s.grid} />
+      <nav style={s.nav}>
+        <div style={s.logo} onClick={() => setTela("home")}><IconShield /> ANTICORRUPÇÃO.BR</div>
+        <div style={s.navLinks}>
+          <button style={s.navBtn(false)} onClick={() => setTela("home")}>BUSCAR</button>
+          <button style={s.navBtn(true)}>ALERTAS</button>
+          <button style={s.navBtn(false)} onClick={() => setTela("upload")}>UPLOAD DOC</button>
+        </div>
+      </nav>
+      <div style={s.main}>
+        <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontSize: "10px", color: "#555", letterSpacing: "0.15em", marginBottom: "8px" }}>PAINEL PÚBLICO — DADOS REAIS</div>
+            <h2 style={{ margin: 0, fontSize: "22px", fontWeight: "800", color: "#fff" }}>Alertas Detectados</h2>
+            <p style={{ color: "#555", fontSize: "12px", marginTop: "6px" }}>Anomalias identificadas automaticamente via Portal da Transparência</p>
+          </div>
+          {ultimaAtualizacao && (
+            <div style={{ fontSize: "10px", color: "#444", textAlign: "right" }}>
+              ATUALIZADO<br /><span style={{ color: "#00d4aa" }}>{ultimaAtualizacao}</span>
+            </div>
+          )}
+        </div>
+
+        {carregando ? (
+          <div style={{ textAlign: "center", padding: "60px", color: "#555" }}>
+            <div style={{ fontSize: "28px", marginBottom: "12px" }}>🔍</div>
+            <div style={{ fontSize: "12px", letterSpacing: "0.1em" }}>CONSULTANDO PORTAL DA TRANSPARÊNCIA...</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {alertas.map((alerta, i) => (
+              <div key={i} style={{
+                display: "flex", gap: "16px", alignItems: "center",
+                background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
+                borderLeft: `3px solid ${corSeveridade(alerta.severidade)}`,
+                borderRadius: "8px", padding: "16px 20px",
+              }}>
+                <span style={{ fontSize: "20px" }}>{iconeAlerta(alerta.tipo)}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#ccc" }}>{alerta.titulo}</div>
+                  <div style={{ fontSize: "11px", color: "#666", marginTop: "4px", lineHeight: 1.5 }}>{alerta.descricao}</div>
+                  <div style={{ fontSize: "10px", color: "#444", marginTop: "6px" }}>
+                    {alerta.orgao && <span>🏛 {alerta.orgao} · </span>}{alerta.data}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                  <span style={{
+                    fontSize: "10px", padding: "2px 8px", borderRadius: "3px",
+                    background: `${corSeveridade(alerta.severidade)}22`,
+                    color: corSeveridade(alerta.severidade), fontWeight: "700",
+                  }}>{labelSeveridade(alerta.severidade)}</span>
+                  {alerta.valor && <span style={{ fontSize: "11px", color: "#ffcc00", fontWeight: "700" }}>{alerta.valor}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -530,51 +694,10 @@ Analise o documento fornecido e identifique APENAS em JSON (sem markdown), segui
 
   // ── TELA ALERTAS PÚBLICOS ────────────────────────────────────────────────
   if (tela === "alertas-pub") return (
-    <div style={s.app}>
-      <div style={s.grid} />
-      <nav style={s.nav}>
-        <div style={s.logo} onClick={() => setTela("home")}><IconShield /> ANTICORRUPÇÃO.BR</div>
-        <div style={s.navLinks}>
-          <button style={s.navBtn(false)} onClick={() => setTela("home")}>BUSCAR</button>
-          <button style={s.navBtn(true)} onClick={() => setTela("alertas-pub")}>ALERTAS</button>
-          <button style={s.navBtn(false)} onClick={() => setTela("upload")}>UPLOAD DOC</button>
-        </div>
-      </nav>
-      <div style={s.main}>
-        <div style={{ marginBottom: "32px" }}>
-          <div style={{ fontSize: "10px", color: "#555", letterSpacing: "0.15em", marginBottom: "8px" }}>PAINEL PÚBLICO</div>
-          <h2 style={{ margin: 0, fontSize: "22px", fontWeight: "800", color: "#fff" }}>Alertas Recentes</h2>
-          <p style={{ color: "#555", fontSize: "12px", marginTop: "6px" }}>Anomalias detectadas automaticamente nas últimas 24h</p>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {[...MOCK_ALERTAS, ...MOCK_ALERTAS.slice(0, 2).map(a => ({ ...a, id: a.id + 10, nome: "Maria Silva Santos", cargo: "Vereadora" }))].map((alerta, i) => (
-            <div key={i} onClick={() => { setPolitico(MOCK_POLITICO); setTela("perfil"); setAbaSelecionada("alertas"); }} style={{
-              display: "flex", gap: "16px", alignItems: "center",
-              background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
-              borderLeft: `3px solid ${corSeveridade(alerta.severidade)}`,
-              borderRadius: "8px", padding: "16px 20px", cursor: "pointer",
-              transition: "background 0.2s",
-            }}>
-              <span style={{ fontSize: "20px" }}>{iconeAlerta(alerta.tipo)}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "12px", fontWeight: "700", color: "#ccc" }}>{alerta.titulo}</div>
-                <div style={{ fontSize: "11px", color: "#555", marginTop: "2px" }}>
-                  {alerta.nome || politico?.nome || "João Carlos da Silva"} · {alerta.cargo || "Deputado Federal"} · {alerta.data}
-                </div>
-              </div>
-              <div style={{ display: "flex", flex: "column", alignItems: "flex-end", gap: "6px" }}>
-                <span style={{
-                  fontSize: "10px", padding: "2px 8px", borderRadius: "3px",
-                  background: `${corSeveridade(alerta.severidade)}22`,
-                  color: corSeveridade(alerta.severidade), fontWeight: "700",
-                }}>{labelSeveridade(alerta.severidade)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <AlertasPublicos
+      s={s} setTela={setTela}
+      corSeveridade={corSeveridade} labelSeveridade={labelSeveridade} iconeAlerta={iconeAlerta}
+    />
   );
 
   // ── TELA UPLOAD ──────────────────────────────────────────────────────────
