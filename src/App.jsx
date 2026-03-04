@@ -81,15 +81,15 @@ function CardDeputado({ dep, onClick }) {
         <div style={{ position: "absolute", bottom: 0, right: 0, width: "9px", height: "9px", borderRadius: "50%", background: c.dot, border: "2px solid #0a0c0f" }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "12px", fontWeight: "700", color: "#ddd", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dep.nome}</div>
-        <div style={{ fontSize: "10px", color: "#555", marginTop: "1px" }}>{dep.siglaPartido} · {dep.siglaUf}</div>
+        <div style={{ fontSize: "13px", fontWeight: "700", color: "#f2f2f2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dep.nome}</div>
+        <div style={{ fontSize: "11px", color: "#999", marginTop: "2px", fontWeight: "500" }}>{dep.siglaPartido} · {dep.siglaUf}</div>
         {dep.motivo && <div style={{ fontSize: "10px", color: c.text, marginTop: "3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dep.motivo}</div>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
-        <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "3px", background: `${c.dot}22`, color: c.text, fontWeight: "700", letterSpacing: "0.08em" }}>{c.label}</span>
-        {dep.totalGasto > 0 && <span style={{ fontSize: "10px", color: "#444" }}>{fmtBRL(dep.totalGasto)}</span>}
+        <span style={{ fontSize: "9px", padding: "2px 8px", borderRadius: "3px", background: `${c.dot}33`, color: c.dot, fontWeight: "800", letterSpacing: "0.08em" }}>{c.label}</span>
+        {dep.totalGasto > 0 && <span style={{ fontSize: "10px", color: "#bbb", fontWeight: "600" }}>{fmtBRL(dep.totalGasto)}</span>}
       </div>
-      <span style={{ color: "#333" }}><IconChevron /></span>
+      <span style={{ color: "#777" }}><IconChevron /></span>
     </div>
   );
 }
@@ -127,24 +127,24 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
         <div style={{ display:"flex",gap:"20px",alignItems:"center",background:c.bg,border:`1px solid ${c.border}`,borderRadius:"12px",padding:"22px",marginBottom:"22px" }}>
           <img src={dep.urlFoto} alt="" style={{ width:"72px",height:"72px",borderRadius:"50%",objectFit:"cover",border:`3px solid ${c.dot}`,flexShrink:0 }} />
           <div style={{ flex:1 }}>
-            <h2 style={{ margin:0,fontSize:"18px",fontWeight:"800",color:"#fff" }}>{dep.nome}</h2>
+            <h2 style={{ margin:0,fontSize:"20px",fontWeight:"800",color:"#ffffff",letterSpacing:"-0.01em" }}>{dep.nome}</h2>
             <div style={{ display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap" }}>
               {[dep.siglaPartido, dep.siglaUf, "Deputado Federal"].map((t,i)=>(
-                <span key={i} style={{ fontSize:"10px",padding:"2px 8px",borderRadius:"3px",background:"rgba(255,255,255,0.06)",color:"#777",letterSpacing:"0.06em" }}>{t}</span>
+                <span key={i} style={{ fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:"rgba(255,255,255,0.1)",color:"#bbb",letterSpacing:"0.06em",fontWeight:"600" }}>{t}</span>
               ))}
             </div>
-            {dep.motivo && <div style={{ marginTop:"10px",fontSize:"12px",color:c.text }}>⚡ {dep.motivo}</div>}
+            {dep.motivo && <div style={{ marginTop:"10px",fontSize:"12px",color:c.text,fontWeight:"600" }}>⚡ {dep.motivo}</div>}
           </div>
           <div style={{ textAlign:"center",flexShrink:0 }}>
-            <div style={{ fontSize:"30px",fontWeight:"800",color:c.dot }}>{dep.score||"—"}</div>
-            <div style={{ fontSize:"9px",color:"#555",letterSpacing:"0.08em" }}>SCORE IA</div>
-            <div style={{ fontSize:"11px",fontWeight:"700",color:c.text,marginTop:"2px" }}>{c.label}</div>
+            <div style={{ fontSize:"32px",fontWeight:"800",color:c.dot,lineHeight:1 }}>{dep.score||"—"}</div>
+            <div style={{ fontSize:"9px",color:"#888",letterSpacing:"0.08em",marginTop:"4px" }}>SCORE IA</div>
+            <div style={{ fontSize:"11px",fontWeight:"800",color:c.text,marginTop:"3px",letterSpacing:"0.06em" }}>{c.label}</div>
           </div>
         </div>
 
         <div style={{ display:"flex",gap:"4px",borderBottom:"1px solid rgba(255,255,255,0.06)",marginBottom:"18px" }}>
           {[{id:"despesas",label:"💳 DESPESAS 2024"},{id:"grafico",label:"📊 POR CATEGORIA"}].map(a=>(
-            <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"9px 14px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:"#555",fontSize:"10px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
+            <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"10px 16px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:"#888",fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
           ))}
         </div>
 
@@ -154,12 +154,12 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
           <div style={{ display:"flex",flexDirection:"column",gap:"7px" }}>
             {despesas.length===0 && <div style={{ color:"#444",fontSize:"12px",textAlign:"center",padding:"40px" }}>Nenhuma despesa em 2024</div>}
             {despesas.slice(0,25).map((d,i)=>(
-              <div key={i} style={{ display:"flex",gap:"12px",alignItems:"center",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"6px",padding:"10px 14px" }}>
+              <div key={i} style={{ display:"flex",gap:"12px",alignItems:"center",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"12px 16px" }}>
                 <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:"11px",fontWeight:"600",color:"#ccc",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{d.nomeFornecedor||"N/D"}</div>
-                  <div style={{ fontSize:"10px",color:"#555",marginTop:"2px" }}>{d.tipoDespesa} · {d.dataDocumento?.substring(0,10)}</div>
+                  <div style={{ fontSize:"12px",fontWeight:"700",color:"#f0f0f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{d.nomeFornecedor||"N/D"}</div>
+                  <div style={{ fontSize:"10px",color:"#888",marginTop:"3px",letterSpacing:"0.04em" }}>{d.tipoDespesa} · {d.dataDocumento?.substring(0,10)}</div>
                 </div>
-                <div style={{ fontSize:"12px",fontWeight:"800",color:d.valorLiquido>10000?"#ff2d55":"#666",flexShrink:0 }}>{fmtBRL(d.valorLiquido)}</div>
+                <div style={{ fontSize:"13px",fontWeight:"800",color:d.valorLiquido>10000?"#ff4d6d":d.valorLiquido>5000?"#ffcc00":"#aaa",flexShrink:0 }}>{fmtBRL(d.valorLiquido)}</div>
               </div>
             ))}
           </div>
@@ -169,8 +169,8 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
             {tiposOrdenados.map(([tipo,valor],i)=>(
               <div key={i} style={{ marginBottom:"12px" }}>
                 <div style={{ display:"flex",justifyContent:"space-between",marginBottom:"4px" }}>
-                  <span style={{ fontSize:"10px",color:"#777" }}>{tipo.substring(0,48)}</span>
-                  <span style={{ fontSize:"10px",fontWeight:"700",color:"#ccc" }}>{fmtBRL(valor)}</span>
+                  <span style={{ fontSize:"11px",color:"#bbb" }}>{tipo.substring(0,48)}</span>
+                  <span style={{ fontSize:"11px",fontWeight:"800",color:"#f0f0f0" }}>{fmtBRL(valor)}</span>
                 </div>
                 <div style={{ height:"5px",background:"rgba(255,255,255,0.05)",borderRadius:"3px" }}>
                   <div style={{ height:"100%",borderRadius:"3px",width:`${(valor/maxV)*100}%`,background:`linear-gradient(90deg,${c.dot},${c.dot}77)` }} />
@@ -398,15 +398,15 @@ export default function AntiCorrupcaoBR() {
 
       <div style={s.main}>
         <div style={{ marginBottom:"20px" }}>
-          <div style={{ fontSize:"10px",color:"#555",letterSpacing:"0.12em",marginBottom:"5px" }}>LEGISLATURA 57 · DADOS REAIS · API CÂMARA DOS DEPUTADOS</div>
-          <h1 style={{ margin:0,fontSize:"20px",fontWeight:"800",color:"#fff" }}>Deputados Federais</h1>
+          <div style={{ fontSize:"10px",color:"#777",letterSpacing:"0.12em",marginBottom:"5px" }}>LEGISLATURA 57 · DADOS REAIS · API CÂMARA DOS DEPUTADOS</div>
+          <h1 style={{ margin:0,fontSize:"22px",fontWeight:"800",color:"#ffffff" }}>Deputados Federais</h1>
         </div>
 
         {/* Barra progresso IA */}
         {progresso < 100 && !carregando && (
           <div style={{ marginBottom:"16px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"8px",padding:"12px 16px" }}>
             <div style={{ display:"flex",justifyContent:"space-between",marginBottom:"7px" }}>
-              <span style={{ fontSize:"10px",color:"#555",letterSpacing:"0.08em" }}>🤖 IA CLASSIFICANDO DEPUTADOS...</span>
+              <span style={{ fontSize:"10px",color:"#aaa",letterSpacing:"0.08em",fontWeight:"600" }}>🤖 IA CLASSIFICANDO DEPUTADOS...</span>
               <span style={{ fontSize:"10px",color:"#00d4aa",fontWeight:"700" }}>{progresso}%</span>
             </div>
             <div style={{ height:"3px",background:"rgba(255,255,255,0.05)",borderRadius:"2px" }}>
@@ -430,7 +430,7 @@ export default function AntiCorrupcaoBR() {
               cursor:"pointer", textAlign:"center",
             }}>
               <div style={{ fontSize:"20px",fontWeight:"800",color:item.cor }}>{item.valor}</div>
-              <div style={{ fontSize:"9px",color:"#555",letterSpacing:"0.08em",marginTop:"2px" }}>{item.label}</div>
+              <div style={{ fontSize:"9px",color:"#999",letterSpacing:"0.08em",marginTop:"2px",fontWeight:"600" }}>{item.label}</div>
             </div>
           ))}
         </div>
@@ -457,8 +457,8 @@ export default function AntiCorrupcaoBR() {
           </select>
         </div>
 
-        <div style={{ fontSize:"10px",color:"#444",marginBottom:"10px",letterSpacing:"0.06em" }}>
-          {deputadosFiltrados.length} DEPUTADOS
+        <div style={{ fontSize:"10px",color:"#888",marginBottom:"10px",letterSpacing:"0.06em",fontWeight:"600" }}>
+          {deputadosFiltrados.length} DEPUTADOS ENCONTRADOS
         </div>
 
         {carregando ? (
