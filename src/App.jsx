@@ -142,7 +142,7 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
       <div style={s.grid} />
       <nav style={s.nav}>
         <div style={s.logo}><IconShield /> ANTICORRUPÇÃO.BR</div>
-        <button onClick={onVoltar} style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#777",padding:"5px 12px",borderRadius:"6px",fontSize:"11px",fontFamily:"inherit",cursor:"pointer" }}>← VOLTAR</button>
+        <button onClick={onVoltar} style={{ background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",color:"#ddd",padding:"6px 14px",borderRadius:"6px",fontSize:"11px",fontFamily:"inherit",cursor:"pointer",fontWeight:"600" }}>← VOLTAR</button>
       </nav>
       <div style={{ ...s.main, maxWidth: "800px" }}>
         <div style={{ display:"flex",gap:"20px",alignItems:"center",background:c.bg,border:`1px solid ${c.border}`,borderRadius:"12px",padding:"22px",marginBottom:"22px" }}>
@@ -151,49 +151,49 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
             <h2 style={{ margin:0,fontSize:"20px",fontWeight:"800",color:"#ffffff",letterSpacing:"-0.01em" }}>{dep.nome}</h2>
             <div style={{ display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap" }}>
               {[dep.siglaPartido, dep.siglaUf, "Deputado Federal"].map((t,i)=>(
-                <span key={i} style={{ fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:"rgba(255,255,255,0.1)",color:"#bbb",letterSpacing:"0.06em",fontWeight:"600" }}>{t}</span>
+                <span key={i} style={{ fontSize:"11px",padding:"4px 12px",borderRadius:"4px",background:"rgba(255,255,255,0.12)",color:"#eee",letterSpacing:"0.06em",fontWeight:"700" }}>{t}</span>
               ))}
             </div>
             {dep.motivo && <div style={{ marginTop:"10px",fontSize:"12px",color:c.text,fontWeight:"600" }}>⚡ {dep.motivo}</div>}
           </div>
           <div style={{ textAlign:"center",flexShrink:0 }}>
             <div style={{ fontSize:"32px",fontWeight:"800",color:c.dot,lineHeight:1 }}>{dep.score||"—"}</div>
-            <div style={{ fontSize:"9px",color:"#888",letterSpacing:"0.08em",marginTop:"4px" }}>SCORE IA</div>
+            <div style={{ fontSize:"10px",color:"#bbb",letterSpacing:"0.08em",marginTop:"4px",fontWeight:"600" }}>SCORE IA</div>
             <div style={{ fontSize:"11px",fontWeight:"800",color:c.text,marginTop:"3px",letterSpacing:"0.06em" }}>{c.label}</div>
           </div>
         </div>
 
-        <div style={{ display:"flex",gap:"4px",borderBottom:"1px solid rgba(255,255,255,0.06)",marginBottom:"18px" }}>
+        <div style={{ display:"flex",gap:"4px",borderBottom:"1px solid rgba(255,255,255,0.12)",marginBottom:"18px" }}>
           {[{id:"despesas",label:"💳 DESPESAS 2024"},{id:"grafico",label:"📊 POR CATEGORIA"}].map(a=>(
             <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"10px 16px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:"#888",fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
           ))}
         </div>
 
         {carregando ? (
-          <div style={{ textAlign:"center",padding:"40px",color:"#444",fontSize:"12px" }}>Carregando dados...</div>
+          <div style={{ textAlign:"center",padding:"40px",color:"#aaa",fontSize:"13px",letterSpacing:"0.06em" }}>Carregando dados...</div>
         ) : aba==="despesas" ? (
           <div style={{ display:"flex",flexDirection:"column",gap:"7px" }}>
-            {despesas.length===0 && <div style={{ color:"#444",fontSize:"12px",textAlign:"center",padding:"40px" }}>Nenhuma despesa em 2024</div>}
+            {despesas.length===0 && <div style={{ color:"#aaa",fontSize:"13px",textAlign:"center",padding:"40px" }}>Nenhuma despesa em 2024</div>}
             {despesas.slice(0,25).map((d,i)=>(
               <div key={i} style={{ display:"flex",gap:"12px",alignItems:"center",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"12px 16px" }}>
                 <div style={{ flex:1,minWidth:0 }}>
                   <div style={{ fontSize:"12px",fontWeight:"700",color:"#f0f0f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{d.nomeFornecedor||"N/D"}</div>
-                  <div style={{ fontSize:"10px",color:"#888",marginTop:"3px",letterSpacing:"0.04em" }}>{d.tipoDespesa} · {d.dataDocumento?.substring(0,10)}</div>
+                  <div style={{ fontSize:"11px",color:"#aaa",marginTop:"3px",letterSpacing:"0.03em" }}>{d.tipoDespesa} · {d.dataDocumento?.substring(0,10)}</div>
                 </div>
-                <div style={{ fontSize:"13px",fontWeight:"800",color:d.valorLiquido>10000?"#ff4d6d":d.valorLiquido>5000?"#ffcc00":"#aaa",flexShrink:0 }}>{fmtBRL(d.valorLiquido)}</div>
+                <div style={{ fontSize:"13px",fontWeight:"800",color:d.valorLiquido>10000?"#ff4d6d":d.valorLiquido>5000?"#ffd60a":"#d0d0d0",flexShrink:0 }}>{fmtBRL(d.valorLiquido)}</div>
               </div>
             ))}
           </div>
         ) : (
           <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"8px",padding:"22px" }}>
-            <div style={{ fontSize:"10px",color:"#555",letterSpacing:"0.1em",marginBottom:"18px" }}>GASTOS POR CATEGORIA — 2024</div>
+            <div style={{ fontSize:"11px",color:"#aaa",letterSpacing:"0.1em",marginBottom:"20px",fontWeight:"600" }}>GASTOS POR CATEGORIA — 2024</div>
             {tiposOrdenados.map(([tipo,valor],i)=>(
               <div key={i} style={{ marginBottom:"12px" }}>
                 <div style={{ display:"flex",justifyContent:"space-between",marginBottom:"4px" }}>
-                  <span style={{ fontSize:"11px",color:"#bbb" }}>{tipo.substring(0,48)}</span>
+                  <span style={{ fontSize:"11px",color:"#ddd",fontWeight:"500" }}>{tipo.substring(0,48)}</span>
                   <span style={{ fontSize:"11px",fontWeight:"800",color:"#f0f0f0" }}>{fmtBRL(valor)}</span>
                 </div>
-                <div style={{ height:"5px",background:"rgba(255,255,255,0.05)",borderRadius:"3px" }}>
+                <div style={{ height:"6px",background:"rgba(255,255,255,0.08)",borderRadius:"3px" }}>
                   <div style={{ height:"100%",borderRadius:"3px",width:`${(valor/maxV)*100}%`,background:`linear-gradient(90deg,${c.dot},${c.dot}77)` }} />
                 </div>
               </div>
