@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-// ── APIs ──────────────────────────────────────────────────────────────────────
+// ── APIs ── v3.0 ─────────────────────────────────────────────────────────────
 const CAMARA_API = "https://dadosabertos.camara.leg.br/api/v2";
 const TRANSP_KEY = import.meta.env.VITE_TRANSPARENCIA_API_KEY || "";
 
@@ -562,10 +562,15 @@ export default function AntiCorrupcaoBR() {
           {deputadosFiltrados.length} DEPUTADOS ENCONTRADOS
         </div>
 
-        {carregando ? (
+        {carregando && deputadosFiltrados.length === 0 ? (
           <div style={{ textAlign:"center",padding:"60px",color:"#444" }}>
             <div style={{ fontSize:"22px",marginBottom:"10px" }}>⏳</div>
             <div style={{ fontSize:"11px",letterSpacing:"0.1em" }}>CARREGANDO DEPUTADOS...</div>
+          </div>
+        ) : deputadosFiltrados.length === 0 ? (
+          <div style={{ textAlign:"center",padding:"60px",color:"#555",border:"1px dashed rgba(255,255,255,0.08)",borderRadius:"12px" }}>
+            <div style={{ fontSize:"22px",marginBottom:"10px" }}>🔍</div>
+            <div style={{ fontSize:"12px",letterSpacing:"0.08em" }}>Nenhum deputado encontrado com esses filtros</div>
           </div>
         ) : (
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"7px" }}>
