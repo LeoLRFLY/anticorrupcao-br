@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 const API_BASE = "https://api.portaldatransparencia.gov.br/api-de-dados";
-const API_KEY = "eaec4d90eb64f31dc87f23e9960bacfa";
+const API_KEY = process.env.REACT_APP_TRANSPARENCIA_API_KEY || "";
 
 // ── Helpers de data ───────────────────────────────────────────────────────────
 const hoje = new Date();
