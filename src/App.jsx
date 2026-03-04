@@ -235,25 +235,10 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
           <span style={{ color:T.textMuted }}>›</span>
           <span style={{ color:T.textSecondary,fontWeight:"500",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{dep.nome}</span>
         </div>
-        {/* Seletor de ano */}
-        <div style={{ display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px",flexWrap:"wrap" }}>
-          <span style={{ fontSize:"11px",color:T.textLabel,fontWeight:"600",letterSpacing:"0.06em" }}>ANO DE REFERÊNCIA:</span>
-          <div style={{ display:"flex",gap:"6px" }}>
-            {[2022,2023,2024,2025,2026].map(a=>(
-              <button key={a} onClick={()=>setAno(a)} style={{
-                padding:"5px 14px",borderRadius:"20px",border:`1px solid ${a===ano?"#00d4aa":T.inputBorder}`,
-                background:a===ano?"rgba(0,212,170,0.15)":T.tagBg,
-                color:a===ano?"#00d4aa":T.textSecondary,
-                fontSize:"11px",fontFamily:"inherit",fontWeight:"700",cursor:"pointer",transition:"all 0.15s"
-              }}>{a}</button>
-            ))}
-          </div>
-        </div>
-
         <div style={{ display:"flex",gap:"20px",alignItems:"center",background:c.bg,border:`1px solid ${c.border}`,borderRadius:"12px",padding:"22px",marginBottom:"22px" }}>
           <img src={dep.urlFoto} alt="" style={{ width:"72px",height:"72px",borderRadius:"50%",objectFit:"cover",border:`3px solid ${c.dot}`,flexShrink:0 }} />
           <div style={{ flex:1 }}>
-            <h2 style={{ margin:0,fontSize:"20px",fontWeight:"800",color:"#ffffff",letterSpacing:"-0.01em" }}>{dep.nome}</h2>
+            <h2 style={{ margin:0,fontSize:"20px",fontWeight:"800",color:T.textPrimary,letterSpacing:"-0.01em" }}>{dep.nome}</h2>
             <div style={{ display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap" }}>
               {[dep.siglaPartido, dep.siglaUf, "Deputado Federal"].map((t,i)=>(
                 <span key={i} style={{ fontSize:"11px",padding:"4px 12px",borderRadius:"4px",background:T.tagBg,color:T.tagText,letterSpacing:"0.06em",fontWeight:"700" }}>{t}</span>
@@ -268,15 +253,29 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
           </div>
         </div>
 
-        {/* Abas */}
-        <div style={{ display:"flex",gap:"4px",borderBottom:`1px solid ${T.divider}`,marginBottom:"20px" }}>
-          {[
-            {id:"resumo",   label:"🔍 RESUMO"},
-            {id:"despesas", label:"💳 DESPESAS"},
-            {id:"grafico",  label:"📊 CATEGORIAS"},
-          ].map(a=>(
-            <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"10px 16px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:T.textSecondary,fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
-          ))}
+        {/* Abas + seletor de ano */}
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`1px solid ${T.divider}`,marginBottom:"20px",flexWrap:"wrap",gap:"8px" }}>
+          <div style={{ display:"flex",gap:"4px" }}>
+            {[
+              {id:"resumo",   label:"🔍 RESUMO"},
+              {id:"despesas", label:"💳 DESPESAS"},
+              {id:"grafico",  label:"📊 CATEGORIAS"},
+            ].map(a=>(
+              <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"10px 16px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:T.textSecondary,fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
+            ))}
+          </div>
+          {/* Seletor de ano */}
+          <div style={{ display:"flex",gap:"5px",paddingBottom:"8px" }}>
+            {[2022,2023,2024,2025,2026].map(a=>(
+              <button key={a} onClick={()=>setAno(a)} style={{
+                padding:"4px 10px",borderRadius:"20px",
+                border:`1px solid ${a===ano?"#00d4aa":T.inputBorder}`,
+                background:a===ano?"rgba(0,212,170,0.15)":T.tagBg,
+                color:a===ano?"#00d4aa":T.textSecondary,
+                fontSize:"11px",fontFamily:"inherit",fontWeight:"700",cursor:"pointer",transition:"all 0.15s"
+              }}>{a}</button>
+            ))}
+          </div>
         </div>
 
         {carregando ? (
