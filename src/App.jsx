@@ -392,72 +392,65 @@ export default function AntiCorrupcaoBR() {
     (async () => {
       setCarregando(true);
       try {
-        // Busca paginada — 100 por vez
-        let lista = [];
-        for (let pag = 1; pag <= 6; pag++) {
-          const res = await fetch(
-            `${CAMARA_API}/deputados?idLegislatura=57&itens=100&pagina=${pag}&ordem=ASC&ordenarPor=nome`,
-            { headers: { "Accept": "application/json" } }
-          );
-          if (!res.ok) break;
-          const text = await res.text();
-          const data = JSON.parse(text);
-          const lote = data.dados || [];
-          if (lote.length === 0) break;
-          lista = [...lista, ...lote];
-        }
+        // Busca página 1 primeiro — mostra imediatamente
+        const r1 = await fetch(`${CAMARA_API}/deputados?itens=100&pagina=1&ordem=ASC&ordenarPor=nome`);
+        const d1 = await r1.json();
+        let lista = d1.dados || [];
 
-        if (lista.length === 0) {
-          // Fallback sem idLegislatura
-          const res2 = await fetch(`${CAMARA_API}/deputados?itens=100&ordem=ASC&ordenarPor=nome`, { headers: { "Accept": "application/json" } });
-          const text2 = await res2.text();
-          const data2 = JSON.parse(text2);
-          lista = data2.dados || [];
-        }
+        if (lista.length === 0) throw new Error("API vazia");
 
-        // Remove duplicatas por ID
-        const vistos = new Set();
-        const listaUnica = lista.filter(d => { if (vistos.has(d.id)) return false; vistos.add(d.id); return true; });
-
-        setDeputados(listaUnica.map(d => ({ ...d, classificacao: null, score: null, motivo: null, totalGasto: 0 })));
+        // Mostra os primeiros 100 imediatamente
+        const vistos = new Set(lista.map(d => d.id));
+        setDeputados(lista.map(d => ({ ...d, classificacao: null, score: null, motivo: null, totalGasto: 0 })));
         setCarregando(false);
-        lista = listaUnica;
 
-        // Classifica em lotes de 5
-        const LOTE = 5;
-        const MAX = Math.min(lista.length, 50);
+        // Busca resto em paralelo (páginas 2-6)
+        const paginas = await Promise.allSettled(
+          [2,3,4,5,6].map(p => fetch(`${CAMARA_API}/deputados?itens=100&pagina=${p}&ordem=ASC&ordenarPor=nome`).then(r=>r.json()))
+        );
+        for (const res of paginas) {
+          if (res.status === "fulfilled") {
+            const novos = (res.value.dados || []).filter(d => !vistos.has(d.id));
+            novos.forEach(d => vistos.add(d.id));
+            if (novos.length > 0) {
+              lista = [...lista, ...novos];
+              setDeputados(prev => {
+                const idsExist = new Set(prev.map(x => x.id));
+                const add = novos.filter(d => !idsExist.has(d.id));
+                return [...prev, ...add.map(d => ({ ...d, classificacao: null, score: null, motivo: null, totalGasto: 0 }))];
+              });
+            }
+          }
+        }
+
+        // Classifica em lotes de 8
+        const LOTE = 8;
+        const MAX = Math.min(lista.length, 80);
         for (let i = 0; i < MAX; i += LOTE) {
           const loteAtual = lista.slice(i, i + LOTE);
-          await Promise.all(loteAtual.map(async (dep) => {
+          await Promise.allSettled(loteAtual.map(async (dep) => {
             try {
-              const r = await fetch(
-                `${CAMARA_API}/deputados/${dep.id}/despesas?ano=2024&itens=100`,
-                { headers: { "Accept": "application/json" } }
-              );
-              const txt = await r.text();
-              const d = JSON.parse(txt);
+              const r = await fetch(`${CAMARA_API}/deputados/${dep.id}/despesas?ano=2024&itens=100`);
+              const d = await r.json();
               const despesas = d.dados || [];
               const totalGasto = despesas.reduce((s, x) => s + (x.valorLiquido || 0), 0);
-              // Classifica localmente primeiro (instantâneo)
-              const classifLocal = classificarLocal(despesas);
-              setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classifLocal, totalGasto } : x));
-              // Depois tenta melhorar com IA (se disponível)
+              const classif = classificarLocal(despesas);
+              setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classif, totalGasto } : x));
+              // Tenta IA
               try {
                 const classifIA = await classificarDeputado(dep, despesas);
                 setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classifIA, totalGasto } : x));
               } catch {}
-            } catch (e) {
-              // Classifica localmente se der qualquer erro
-              const classifLocal = classificarLocal([]);
-              setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classifLocal, totalGasto: 0 } : x));
+            } catch {
+              setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classificarLocal([]), totalGasto: 0 } : x));
             }
           }));
           setProgresso(Math.min(99, Math.round(((i + LOTE) / MAX) * 100)));
-          await new Promise(r => setTimeout(r, 600));
+          await new Promise(r => setTimeout(r, 400));
         }
         setProgresso(100);
       } catch (e) {
-        console.error("Erro:", e);
+        console.error("Erro ao carregar:", e);
         setCarregando(false);
       }
     })();
