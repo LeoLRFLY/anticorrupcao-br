@@ -115,6 +115,30 @@ function CardDeputado({ dep, onClick }) {
   );
 }
 
+
+// ── Ícone por tipo de despesa ─────────────────────────────────────────────────
+function iconeDespesa(tipo) {
+  if (!tipo) return "📄";
+  const t = tipo.toUpperCase();
+  if (t.includes("COMBUSTÍVEL") || t.includes("COMBUSTIVEL")) return "⛽";
+  if (t.includes("PASSAGEM") || t.includes("AÉREA") || t.includes("AEREA")) return "✈️";
+  if (t.includes("ALIMENTAÇÃO") || t.includes("ALIMENTACAO") || t.includes("REFEIÇÃO")) return "🍽️";
+  if (t.includes("ESCRITÓRIO") || t.includes("ESCRITORIO") || t.includes("LOCAÇÃO")) return "🏢";
+  if (t.includes("TELEFON") || t.includes("POSTAL")) return "📱";
+  if (t.includes("DIVULGAÇÃO") || t.includes("DIVULGACAO") || t.includes("PUBLICIDADE")) return "📢";
+  if (t.includes("CONSULTORIA") || t.includes("ASSESSORIA")) return "🤝";
+  if (t.includes("TÁXI") || t.includes("TAXI") || t.includes("UBER") || t.includes("VEÍCULO")) return "🚗";
+  if (t.includes("HOSPEDAGEM") || t.includes("HOTEL")) return "🏨";
+  if (t.includes("SEGURANÇA") || t.includes("SEGURANCA")) return "🛡️";
+  return "📋";
+}
+
+function corValor(v) {
+  if (v > 20000) return { cor: "#ff4d6d", bg: "rgba(255,77,109,0.1)", label: "ALTO" };
+  if (v > 8000)  return { cor: "#ffd60a", bg: "rgba(255,214,10,0.1)",  label: "MÉDIO" };
+  return               { cor: "#00d4aa", bg: "rgba(0,212,170,0.08)",   label: "" };
+}
+
 // ── Perfil Deputado ───────────────────────────────────────────────────────────
 function TelaPerfilDeputado({ dep, onVoltar, s }) {
   const [despesas, setDespesas] = useState([]);
@@ -172,17 +196,72 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
         {carregando ? (
           <div style={{ textAlign:"center",padding:"40px",color:"#aaa",fontSize:"13px",letterSpacing:"0.06em" }}>Carregando dados...</div>
         ) : aba==="despesas" ? (
-          <div style={{ display:"flex",flexDirection:"column",gap:"7px" }}>
-            {despesas.length===0 && <div style={{ color:"#aaa",fontSize:"13px",textAlign:"center",padding:"40px" }}>Nenhuma despesa em 2024</div>}
-            {despesas.slice(0,25).map((d,i)=>(
-              <div key={i} style={{ display:"flex",gap:"12px",alignItems:"center",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"12px 16px" }}>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:"12px",fontWeight:"700",color:"#f0f0f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{d.nomeFornecedor||"N/D"}</div>
-                  <div style={{ fontSize:"11px",color:"#aaa",marginTop:"3px",letterSpacing:"0.03em" }}>{d.tipoDespesa} · {d.dataDocumento?.substring(0,10)}</div>
-                </div>
-                <div style={{ fontSize:"13px",fontWeight:"800",color:d.valorLiquido>10000?"#ff4d6d":d.valorLiquido>5000?"#ffd60a":"#d0d0d0",flexShrink:0 }}>{fmtBRL(d.valorLiquido)}</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:"8px" }}>
+            {despesas.length===0 && (
+              <div style={{ color:"#aaa",fontSize:"13px",textAlign:"center",padding:"60px",border:"1px dashed rgba(255,255,255,0.1)",borderRadius:"12px" }}>
+                Nenhuma despesa registrada em 2024
               </div>
-            ))}
+            )}
+            {/* Resumo total */}
+            {despesas.length > 0 && (() => {
+              const total = despesas.reduce((s,d)=>s+(d.valorLiquido||0),0);
+              const fornecedores = new Set(despesas.map(d=>d.cnpjCpfFornecedor).filter(Boolean)).size;
+              return (
+                <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",marginBottom:"8px" }}>
+                  {[
+                    { label:"TOTAL GASTO",    valor: fmtBRL(total),          icon:"💰" },
+                    { label:"TRANSAÇÕES",     valor: despesas.length,         icon:"🧾" },
+                    { label:"FORNECEDORES",   valor: fornecedores,            icon:"🏢" },
+                  ].map((item,i)=>(
+                    <div key={i} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"12px 14px",textAlign:"center" }}>
+                      <div style={{ fontSize:"18px",marginBottom:"4px" }}>{item.icon}</div>
+                      <div style={{ fontSize:"14px",fontWeight:"800",color:"#f0f0f0" }}>{item.valor}</div>
+                      <div style={{ fontSize:"9px",color:"#888",letterSpacing:"0.08em",marginTop:"3px" }}>{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+            {/* Lista de despesas */}
+            {despesas.slice(0,30).map((d,i)=>{
+              const cv = corValor(d.valorLiquido||0);
+              const icone = iconeDespesa(d.tipoDespesa);
+              const data = d.dataDocumento?.substring(0,10) || "";
+              const [ano,mes,dia] = data.split("-");
+              const dataFmt = data ? `${dia}/${mes}/${ano}` : "—";
+              return (
+                <div key={i} style={{ display:"flex",gap:"14px",alignItems:"center",background:"rgba(255,255,255,0.04)",border:`1px solid ${cv.bg ? cv.bg.replace("0.1","0.25") : "rgba(255,255,255,0.08)"}`,borderLeft:`3px solid ${cv.cor}`,borderRadius:"8px",padding:"14px 16px",transition:"background 0.15s" }}>
+                  {/* Ícone categoria */}
+                  <div style={{ fontSize:"22px",flexShrink:0,width:"32px",textAlign:"center" }}>{icone}</div>
+                  {/* Info principal */}
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontSize:"13px",fontWeight:"700",color:"#f5f5f5",marginBottom:"4px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
+                      {d.nomeFornecedor || "Fornecedor não informado"}
+                    </div>
+                    <div style={{ display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center" }}>
+                      <span style={{ fontSize:"10px",color:"#ddd",background:"rgba(255,255,255,0.08)",padding:"2px 8px",borderRadius:"3px",fontWeight:"600" }}>
+                        {d.tipoDespesa?.substring(0,40) || "Sem categoria"}
+                      </span>
+                      {d.cnpjCpfFornecedor && (
+                        <span style={{ fontSize:"10px",color:"#888",fontFamily:"monospace" }}>
+                          {d.cnpjCpfFornecedor.length === 14
+                            ? d.cnpjCpfFornecedor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5")
+                            : d.cnpjCpfFornecedor}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Data + Valor */}
+                  <div style={{ textAlign:"right",flexShrink:0 }}>
+                    <div style={{ fontSize:"15px",fontWeight:"800",color:cv.cor }}>{fmtBRL(d.valorLiquido||0)}</div>
+                    <div style={{ fontSize:"10px",color:"#999",marginTop:"4px" }}>{dataFmt}</div>
+                    {cv.label && (
+                      <span style={{ fontSize:"9px",padding:"1px 6px",borderRadius:"3px",background:cv.bg,color:cv.cor,fontWeight:"700",letterSpacing:"0.06em",marginTop:"4px",display:"inline-block" }}>{cv.label}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"8px",padding:"22px" }}>
