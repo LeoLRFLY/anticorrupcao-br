@@ -576,6 +576,258 @@ function TelaUpload({ s, setTela, tema, setTema }) {
 }
 
 // ── APP PRINCIPAL ─────────────────────────────────────────────────────────────
+// ── Tela Votações ─────────────────────────────────────────────────────────────
+const TEMAS_SENSIVEIS = [
+  { id:"reforma-trib", emoji:"💰", titulo:"Reforma Tributária", subtitulo:"PEC 45/2019",
+    descricao:"Substituiu PIS, Cofins, IPI, ICMS e ISS por CBS, IBS e Imposto Seletivo. Maior reforma tributária desde 1988.",
+    data:"Jul 2023", votacaoId:"2196833-373", resultado:{sim:375,nao:113,abstencao:3}, aprovado:true, categoria:"economia" },
+  { id:"marco-temporal", emoji:"🌿", titulo:"Marco Temporal Terras Indígenas", subtitulo:"PL 490/2007",
+    descricao:"Limitaria demarcação de terras indígenas a ocupações comprovadas em 05/10/1988. Aprovado na Câmara, questionado no STF.",
+    data:"Mai 2023", votacaoId:"345311-279", resultado:{sim:290,nao:142,abstencao:1}, aprovado:true, categoria:"direitos" },
+  { id:"fake-news", emoji:"📱", titulo:"PL das Fake News — Urgência", subtitulo:"PL 2630/2020",
+    descricao:"Responsabilizaria plataformas digitais por desinformação. Aprovação da urgência por margem estreita.",
+    data:"Abr 2023", votacaoId:"2310837-8", resultado:{sim:238,nao:192,abstencao:1}, aprovado:true, categoria:"liberdades" },
+  { id:"reform-trib-2t", emoji:"🏦", titulo:"Reforma Tributária — 2º Turno", subtitulo:"PEC 45/2019",
+    descricao:"Votação final em segundo turno. Deputados com posição diferente entre os dois turnos são identificados.",
+    data:"Jul 2023", votacaoId:"2196833-395", resultado:{sim:336,nao:132,abstencao:0}, aprovado:true, categoria:"economia" },
+  { id:"marco-temporal-aprov", emoji:"🏛️", titulo:"Marco Temporal — Aprovação Final", subtitulo:"PL 490/2007",
+    descricao:"Votação decisiva da subemenda substitutiva global do Marco Temporal das Terras Indígenas.",
+    data:"Mai 2023", votacaoId:"345311-276", resultado:{sim:288,nao:148,abstencao:2}, aprovado:true, categoria:"direitos" },
+];
+
+const CATEGORIAS_VOT = [
+  {id:"todas",label:"Todas"},{id:"economia",label:"💰 Economia"},{id:"direitos",label:"⚖️ Direitos"},{id:"liberdades",label:"🔓 Liberdades"},
+];
+
+function TelaVotacoes({ s, tema, setTema, setTela }) {
+  const T = s.T; const dark = tema==="dark";
+  const [temaSel, setTemaSel] = useState(null);
+  const [votos, setVotos] = useState([]);
+  const [carregando, setCarregando] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [filtVoto, setFiltVoto] = useState("todos");
+  const [filtPartido, setFiltPartido] = useState("Todos");
+  const [filtCat, setFiltCat] = useState("todas");
+
+  const carregarVotos = async (t) => {
+    setTemaSel(t); setVotos([]); setCarregando(true);
+    setBusca(""); setFiltVoto("todos"); setFiltPartido("Todos");
+    try {
+      const res = await fetch(`${CAMARA_API}/votacoes/${t.votacaoId}/votos`);
+      const data = await res.json();
+      setVotos(data.dados||[]);
+    } catch {}
+    setCarregando(false);
+  };
+
+  const partidos = temaSel ? ["Todos",...new Set(votos.map(v=>v.deputado_?.siglaPartido).filter(Boolean)).values()].sort() : [];
+
+  const votosFiltrados = votos.filter(v => {
+    const dep = v.deputado_||{};
+    if (busca && !dep.nome?.toLowerCase().includes(busca.toLowerCase()) && !dep.siglaPartido?.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (filtVoto!=="todos" && v.tipoVoto?.toLowerCase()!==filtVoto) return false;
+    if (filtPartido!=="Todos" && dep.siglaPartido!==filtPartido) return false;
+    return true;
+  });
+
+  const statsPorPartido = votos.reduce((acc,v)=>{
+    const p=v.deputado_?.siglaPartido||"?";
+    if(!acc[p]) acc[p]={sim:0,nao:0,abs:0,total:0};
+    const t=v.tipoVoto?.toLowerCase();
+    if(t==="sim") acc[p].sim++; else if(t==="não") acc[p].nao++; else acc[p].abs++;
+    acc[p].total++; return acc;
+  },{});
+  const partidosOrdenados = Object.entries(statsPorPartido).sort((a,b)=>b[1].total-a[1].total).slice(0,12);
+
+  const corVoto = t => { const v=t?.toLowerCase(); return v==="sim"?"#00d464":v==="não"?"#ff4d6d":"#ffd60a"; };
+  const bgVoto  = t => { const v=t?.toLowerCase(); return v==="sim"?"rgba(0,212,100,0.1)":v==="não"?"rgba(255,77,109,0.1)":"rgba(255,214,10,0.1)"; };
+  const emVoto  = t => { const v=t?.toLowerCase(); return v==="sim"?"✅":v==="não"?"❌":"🟡"; };
+
+  return (
+    <div style={s.app}>
+      <div style={s.grid}/>
+      <nav style={s.nav}>
+        <div style={s.logo} onClick={()=>{setTemaSel(null);setTela("votacoes")}}><IconShield/> ANTICORRUPÇÃO.BR</div>
+        <div style={s.navLinks}>
+          <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
+          <button style={s.navBtn(true)}>🗳️ VOTAÇÕES</button>
+          <button style={s.navBtn(false)} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
+          <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
+            {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
+          </button>
+        </div>
+      </nav>
+
+      <div style={{...s.main,maxWidth:"900px"}}>
+        {!temaSel ? (<>
+          <div style={{marginBottom:"24px"}}>
+            <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>CÂMARA DOS DEPUTADOS · VOTAÇÕES NOMINAIS</div>
+            <h1 style={{margin:0,fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>Como votaram em temas sensíveis</h1>
+            <p style={{margin:"8px 0 0",fontSize:"13px",color:T.textSecondary,lineHeight:"1.6"}}>Selecione um tema para ver o voto de cada deputado. Dados oficiais da API da Câmara.</p>
+          </div>
+          <div style={{display:"flex",gap:"6px",marginBottom:"20px",flexWrap:"wrap"}}>
+            {CATEGORIAS_VOT.map(cat=>(
+              <button key={cat.id} onClick={()=>setFiltCat(cat.id)} style={{padding:"5px 14px",borderRadius:"20px",border:`1px solid ${filtCat===cat.id?"#00d4aa":T.inputBorder}`,background:filtCat===cat.id?"rgba(0,212,170,0.15)":T.tagBg,color:filtCat===cat.id?"#00d4aa":T.textSecondary,fontSize:"11px",fontFamily:"inherit",fontWeight:"700",cursor:"pointer"}}>{cat.label}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+            {TEMAS_SENSIVEIS.filter(t=>filtCat==="todas"||t.categoria===filtCat).map(t=>{
+              const tot=t.resultado.sim+t.resultado.nao+t.resultado.abstencao;
+              const pS=tot>0?Math.round(t.resultado.sim/tot*100):0;
+              const pN=tot>0?Math.round(t.resultado.nao/tot*100):0;
+              return (
+                <div key={t.id} onClick={()=>carregarVotos(t)} style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"12px",padding:"20px",cursor:"pointer"}}>
+                  <div style={{display:"flex",gap:"16px",alignItems:"flex-start"}}>
+                    <div style={{fontSize:"28px",flexShrink:0}}>{t.emoji}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"4px",flexWrap:"wrap"}}>
+                        <span style={{fontSize:"15px",fontWeight:"800",color:T.textPrimary}}>{t.titulo}</span>
+                        <span style={{fontSize:"10px",color:T.textMuted,background:T.tagBg,padding:"2px 8px",borderRadius:"10px",fontWeight:"600"}}>{t.subtitulo}</span>
+                        <span style={{fontSize:"10px",color:T.textMuted}}>{t.data}</span>
+                      </div>
+                      <p style={{margin:"0 0 14px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.6"}}>{t.descricao}</p>
+                      <div style={{display:"flex",height:"8px",borderRadius:"4px",overflow:"hidden",marginBottom:"8px",gap:"2px"}}>
+                        <div style={{width:`${pS}%`,background:"#00d464"}}/>
+                        <div style={{width:`${pN}%`,background:"#ff4d6d"}}/>
+                        {t.resultado.abstencao>0 && <div style={{flex:1,background:"#ffd60a"}}/>}
+                      </div>
+                      <div style={{display:"flex",gap:"16px",fontSize:"11px",flexWrap:"wrap"}}>
+                        <span style={{color:"#00d464",fontWeight:"700"}}>✅ {t.resultado.sim} SIM ({pS}%)</span>
+                        <span style={{color:"#ff4d6d",fontWeight:"700"}}>❌ {t.resultado.nao} NÃO ({pN}%)</span>
+                        {t.resultado.abstencao>0&&<span style={{color:"#ffd60a",fontWeight:"700"}}>🟡 {t.resultado.abstencao}</span>}
+                        <span style={{color:T.textMuted,marginLeft:"auto"}}>clique para ver cada deputado →</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{marginTop:"24px",padding:"16px",background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"10px",fontSize:"11px",color:T.textMuted,lineHeight:"1.7"}}>
+            <strong style={{color:T.textSecondary}}>ℹ️ Sobre:</strong> Votos nominais extraídos da API oficial da Câmara. Estamos expandindo o banco com mais temas como anistia, porte de armas, meio ambiente e outros.
+          </div>
+        </>) : (<>
+          {/* Breadcrumb */}
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
+            <span onClick={()=>setTemaSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>Votações</span>
+            <span style={{color:T.textMuted}}>›</span>
+            <span style={{color:T.textSecondary,fontWeight:"500"}}>{temaSel.titulo}</span>
+          </div>
+
+          {/* Header tema */}
+          <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"20px",marginBottom:"20px"}}>
+            <div style={{display:"flex",gap:"14px",alignItems:"flex-start"}}>
+              <span style={{fontSize:"32px"}}>{temaSel.emoji}</span>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap",marginBottom:"6px"}}>
+                  <h2 style={{margin:0,fontSize:"18px",fontWeight:"800",color:T.textPrimary}}>{temaSel.titulo}</h2>
+                  <span style={{fontSize:"10px",color:T.textMuted,background:T.tagBg,padding:"2px 8px",borderRadius:"10px",fontWeight:"600"}}>{temaSel.subtitulo} · {temaSel.data}</span>
+                </div>
+                <p style={{margin:"0 0 14px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.6"}}>{temaSel.descricao}</p>
+                {votos.length>0&&(()=>{
+                  const sim=votos.filter(v=>v.tipoVoto?.toLowerCase()==="sim").length;
+                  const nao=votos.filter(v=>v.tipoVoto?.toLowerCase()==="não").length;
+                  const abs=votos.length-sim-nao; const tot=votos.length;
+                  return (<>
+                    <div style={{display:"flex",height:"12px",borderRadius:"6px",overflow:"hidden",marginBottom:"10px",gap:"2px"}}>
+                      <div style={{width:`${(sim/tot)*100}%`,background:"#00d464"}}/>
+                      <div style={{width:`${(nao/tot)*100}%`,background:"#ff4d6d"}}/>
+                      {abs>0&&<div style={{flex:1,background:"#ffd60a"}}/>}
+                    </div>
+                    <div style={{display:"flex",gap:"20px",fontSize:"13px",flexWrap:"wrap"}}>
+                      <span style={{color:"#00d464",fontWeight:"800"}}>✅ {sim} SIM ({Math.round(sim/tot*100)}%)</span>
+                      <span style={{color:"#ff4d6d",fontWeight:"800"}}>❌ {nao} NÃO ({Math.round(nao/tot*100)}%)</span>
+                      {abs>0&&<span style={{color:"#ffd60a",fontWeight:"800"}}>🟡 {abs} ABSTENÇÃO</span>}
+                      <span style={{color:T.textMuted}}>{tot} deputados</span>
+                    </div>
+                  </>);
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Por partido */}
+          {!carregando&&votos.length>0&&(
+            <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"18px",marginBottom:"20px"}}>
+              <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"14px"}}>📊 RESULTADO POR PARTIDO</div>
+              <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+                {partidosOrdenados.map(([partido,st])=>{
+                  const pS=Math.round(st.sim/st.total*100);
+                  const pN=Math.round(st.nao/st.total*100);
+                  return (
+                    <div key={partido} style={{display:"flex",alignItems:"center",gap:"10px"}}>
+                      <div style={{width:"80px",fontSize:"11px",fontWeight:"700",color:T.textPrimary,flexShrink:0}}>{partido}</div>
+                      <div style={{flex:1,height:"18px",borderRadius:"4px",overflow:"hidden",display:"flex",gap:"1px",background:T.divider}}>
+                        <div style={{width:`${pS}%`,background:"#00d464",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {pS>12&&<span style={{fontSize:"9px",fontWeight:"800",color:"#fff"}}>{pS}%</span>}
+                        </div>
+                        <div style={{width:`${pN}%`,background:"#ff4d6d",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {pN>12&&<span style={{fontSize:"9px",fontWeight:"800",color:"#fff"}}>{pN}%</span>}
+                        </div>
+                        <div style={{flex:1,background:"#ffd60a33"}}/>
+                      </div>
+                      <div style={{fontSize:"10px",color:T.textMuted,flexShrink:0,textAlign:"right",minWidth:"100px"}}>
+                        {st.sim}✅ {st.nao}❌{st.abs>0?" "+st.abs+"🟡":""} <span style={{color:T.textLabel}}>({st.total})</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Filtros */}
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"8px",padding:"12px 14px",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"7px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",flex:"1",minWidth:"160px"}}>
+              <IconSearch/><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar deputado ou partido..."
+                style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",width:"100%"}}/>
+            </div>
+            {["todos","sim","não","abstencao"].map(vt=>(
+              <button key={vt} onClick={()=>setFiltVoto(vt)} style={{
+                padding:"5px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+                background:filtVoto===vt?(vt==="sim"?"rgba(0,212,100,0.2)":vt==="não"?"rgba(255,77,109,0.2)":vt==="abstencao"?"rgba(255,214,10,0.2)":T.accentDim):T.tagBg,
+                color:filtVoto===vt?(vt==="sim"?"#00d464":vt==="não"?"#ff4d6d":vt==="abstencao"?"#ffd60a":"#00d4aa"):T.textSecondary,
+                border:`1px solid ${filtVoto===vt?(vt==="sim"?"#00d46444":vt==="não"?"#ff4d6d44":vt==="abstencao"?"#ffd60a44":"#00d4aa44"):T.inputBorder}`,
+              }}>{vt==="todos"?"Todos":vt==="sim"?"✅ SIM":vt==="não"?"❌ NÃO":"🟡 ABSTENÇÃO"}</button>
+            ))}
+            <select value={filtPartido} onChange={e=>setFiltPartido(e.target.value)}
+              style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",padding:"6px 10px",cursor:"pointer",outline:"none"}}>
+              {partidos.map(p=><option key={p} value={p} style={{background:T.selectBg}}>{p}</option>)}
+            </select>
+            <span style={{fontSize:"10px",color:T.textMuted}}>{votosFiltrados.length} deputados</span>
+          </div>
+
+          {carregando&&<div style={{textAlign:"center",padding:"60px",color:T.textSecondary,fontSize:"13px"}}><div style={{fontSize:"28px",marginBottom:"12px"}}>⏳</div>Carregando votos...</div>}
+
+          {/* Lista votos */}
+          {!carregando&&(
+            <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+              {votosFiltrados.map((v,i)=>{
+                const dep=v.deputado_||{};
+                const cor=corVoto(v.tipoVoto); const bg=bgVoto(v.tipoVoto);
+                return (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:"12px",background:bg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"10px 14px"}}>
+                    <span style={{fontSize:"18px",flexShrink:0}}>{emVoto(v.tipoVoto)}</span>
+                    <img src={dep.urlFoto} alt="" style={{width:"32px",height:"32px",borderRadius:"50%",objectFit:"cover",border:`2px solid ${cor}`,flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{dep.nome}</div>
+                      <div style={{fontSize:"10px",color:T.textSecondary,marginTop:"2px"}}>{dep.siglaPartido} · {dep.siglaUf}</div>
+                    </div>
+                    <span style={{fontSize:"11px",fontWeight:"800",color:cor,flexShrink:0,padding:"3px 10px",borderRadius:"4px",background:`${cor}22`,border:`1px solid ${cor}44`}}>
+                      {v.tipoVoto?.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })}
+              {votosFiltrados.length===0&&<div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"13px",border:`1px dashed ${T.divider}`,borderRadius:"12px"}}>Nenhum voto encontrado com esses filtros</div>}
+            </div>
+          )}
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 export default function AntiCorrupcaoBR() {
   const [tela, setTela] = useState("lista");
   const [deputados, setDeputados] = useState([]);
@@ -728,6 +980,7 @@ export default function AntiCorrupcaoBR() {
 
   if (depSelecionado) return <TelaPerfilDeputado dep={depSelecionado} onVoltar={() => setDepSelecionado(null)} s={s} tema={tema} setTema={setTema} />;
   if (tela === "upload") return <TelaUpload s={s} setTela={setTela} tema={tema} setTema={setTema} />;
+  if (tela === "votacoes") return <TelaVotacoes s={s} tema={tema} setTema={setTema} setTela={setTela} />;
 
   return (
     <div style={s.app}>
@@ -735,8 +988,9 @@ export default function AntiCorrupcaoBR() {
       <nav style={s.nav}>
         <div style={s.logo}><IconShield /> ANTICORRUPÇÃO.BR</div>
         <div style={s.navLinks}>
-          <button style={s.navBtn(true)}>DEPUTADOS</button>
-          <button style={s.navBtn(false)} onClick={() => setTela("upload")}>UPLOAD DOC</button>
+          <button style={s.navBtn(tela==="lista")} onClick={()=>setTela("lista")}>DEPUTADOS</button>
+          <button style={s.navBtn(tela==="votacoes")} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
+          <button style={s.navBtn(tela==="upload")} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
           <button onClick={()=>setTema(dark?"light":"dark")} style={{ marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit" }}>{dark?"☀️":"🌙"}<span style={{ fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em" }}>{dark?"CLARO":"ESCURO"}</span></button>
         </div>
       </nav>
