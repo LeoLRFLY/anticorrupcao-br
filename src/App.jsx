@@ -139,17 +139,59 @@ function corValor(v) {
   return               { cor: "#00d4aa", bg: "rgba(0,212,170,0.08)",   label: "" };
 }
 
+// ── Alertas inteligentes para leigos ─────────────────────────────────────────
+function gerarAlertas(despesas) {
+  const alertas = [];
+  if (!despesas.length) return alertas;
+
+  const total = despesas.reduce((s,d)=>s+(d.valorLiquido||0),0);
+  const porFornecedor = {};
+  const porTipo = {};
+  despesas.forEach(d => {
+    if (d.cnpjCpfFornecedor) porFornecedor[d.cnpjCpfFornecedor] = (porFornecedor[d.cnpjCpfFornecedor]||0)+1;
+    if (d.tipoDespesa) porTipo[d.tipoDespesa] = (porTipo[d.tipoDespesa]||{total:0,count:0});
+    if (d.tipoDespesa) { porTipo[d.tipoDespesa].total += d.valorLiquido||0; porTipo[d.tipoDespesa].count += 1; }
+  });
+
+  const fornMaisUsado = Object.entries(porFornecedor).sort((a,b)=>b[1]-a[1])[0];
+  const tipoMaisGasto = Object.entries(porTipo).sort((a,b)=>b[1].total-a[1].total)[0];
+  const numFornecedores = Object.keys(porFornecedor).length;
+  const maiorDespesa = despesas.reduce((mx,d)=>d.valorLiquido>mx.valorLiquido?d:mx, despesas[0]);
+
+  if (total > 120000)
+    alertas.push({ nivel:"critico", icone:"🚨", titulo:"Gasto muito acima da média", texto:`Total de ${fmtBRL(total)} ultrapassa o padrão esperado de R$ 100 mil/ano para cota parlamentar.` });
+  else if (total > 70000)
+    alertas.push({ nivel:"atencao", icone:"⚠️", titulo:"Gasto elevado", texto:`Total de ${fmtBRL(total)} está acima da média dos deputados brasileiros.` });
+
+  if (fornMaisUsado && fornMaisUsado[1] >= 8)
+    alertas.push({ nivel:"atencao", icone:"🔁", titulo:"Fornecedor repetido com frequência", texto:`Um mesmo fornecedor aparece ${fornMaisUsado[1]} vezes nas despesas. Isso pode indicar favorecimento.` });
+
+  if (numFornecedores > 30 && total < 20000)
+    alertas.push({ nivel:"critico", icone:"🕵️", titulo:"Muitos fornecedores para valor baixo", texto:`${numFornecedores} fornecedores diferentes para um total de apenas ${fmtBRL(total)}. Padrão atípico.` });
+
+  if (maiorDespesa && maiorDespesa.valorLiquido > 15000)
+    alertas.push({ nivel:"atencao", icone:"💸", titulo:"Despesa unitária muito alta", texto:`Uma única despesa de ${fmtBRL(maiorDespesa.valorLiquido)} com "${maiorDespesa.nomeFornecedor}". Verifique se há justificativa.` });
+
+  if (tipoMaisGasto && tipoMaisGasto[1].count > 15)
+    alertas.push({ nivel:"info", icone:"📋", titulo:`Alta concentração em "${tipoMaisGasto[0]?.substring(0,35)}"`, texto:`${tipoMaisGasto[1].count} transações nessa categoria representam ${fmtBRL(tipoMaisGasto[1].total)} do total.` });
+
+  if (alertas.length === 0)
+    alertas.push({ nivel:"ok", icone:"✅", titulo:"Sem irregularidades detectadas", texto:"Os gastos deste deputado estão dentro do padrão esperado para o exercício de 2024." });
+
+  return alertas;
+}
+
 // ── Perfil Deputado ───────────────────────────────────────────────────────────
 function TelaPerfilDeputado({ dep, onVoltar, s }) {
   const [despesas, setDespesas] = useState([]);
   const [carregando, setCarregando] = useState(true);
-  const [aba, setAba] = useState("despesas");
+  const [aba, setAba] = useState("resumo");
   const c = COR[dep.classificacao || "loading"];
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${CAMARA_API}/deputados/${dep.id}/despesas?ano=2024&itens=50`);
+        const res = await fetch(`${CAMARA_API}/deputados/${dep.id}/despesas?ano=2024&itens=100`);
         const data = await res.json();
         setDespesas(data.dados || []);
       } catch {}
@@ -160,6 +202,9 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
   const porTipo = despesas.reduce((acc, d) => { acc[d.tipoDespesa] = (acc[d.tipoDespesa]||0)+d.valorLiquido; return acc; }, {});
   const tiposOrdenados = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const maxV = tiposOrdenados[0]?.[1]||1;
+  const alertas = gerarAlertas(despesas);
+  const total = despesas.reduce((s,d)=>s+(d.valorLiquido||0),0);
+  const fornecedores = new Set(despesas.map(d=>d.cnpjCpfFornecedor).filter(Boolean)).size;
 
   return (
     <div style={s.app}>
@@ -193,14 +238,94 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
           </div>
         </div>
 
-        <div style={{ display:"flex",gap:"4px",borderBottom:"1px solid rgba(255,255,255,0.12)",marginBottom:"18px" }}>
-          {[{id:"despesas",label:"💳 DESPESAS 2024"},{id:"grafico",label:"📊 POR CATEGORIA"}].map(a=>(
+        {/* Abas */}
+        <div style={{ display:"flex",gap:"4px",borderBottom:"1px solid rgba(255,255,255,0.12)",marginBottom:"20px" }}>
+          {[
+            {id:"resumo",   label:"🔍 RESUMO"},
+            {id:"despesas", label:"💳 DESPESAS"},
+            {id:"grafico",  label:"📊 CATEGORIAS"},
+          ].map(a=>(
             <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"10px 16px",background:"transparent",border:"none",borderBottom:aba===a.id?`2px solid ${c.dot}`:"2px solid transparent",color:aba===a.id?c.dot:"#888",fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px" }}>{a.label}</button>
           ))}
         </div>
 
         {carregando ? (
-          <div style={{ textAlign:"center",padding:"40px",color:"#aaa",fontSize:"13px",letterSpacing:"0.06em" }}>Carregando dados...</div>
+          <div style={{ textAlign:"center",padding:"60px",color:"#aaa",fontSize:"13px",letterSpacing:"0.06em" }}>
+            <div style={{ fontSize:"28px",marginBottom:"12px" }}>⏳</div>Carregando dados...
+          </div>
+
+        ) : aba==="resumo" ? (
+          <div style={{ display:"flex",flexDirection:"column",gap:"14px" }}>
+
+            {/* Cards de estatísticas */}
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px" }}>
+              {[
+                { label:"Total gasto em 2024", valor:fmtBRL(total), icon:"💰", sub:"Cota parlamentar", cor: total>120000?"#ff4d6d":total>70000?"#ffd60a":"#00d4aa" },
+                { label:"Pagamentos realizados", valor:despesas.length, icon:"🧾", sub:"Nº de notas fiscais", cor:"#aaa" },
+                { label:"Empresas diferentes", valor:fornecedores, icon:"🏢", sub:"Fornecedores únicos", cor: fornecedores>40?"#ff4d6d":fornecedores<5&&despesas.length>10?"#ffd60a":"#aaa" },
+              ].map((item,i)=>(
+                <div key={i} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"16px",textAlign:"center" }}>
+                  <div style={{ fontSize:"22px",marginBottom:"6px" }}>{item.icon}</div>
+                  <div style={{ fontSize:"18px",fontWeight:"800",color:item.cor }}>{item.valor}</div>
+                  <div style={{ fontSize:"11px",color:"#ddd",fontWeight:"600",marginTop:"4px" }}>{item.label}</div>
+                  <div style={{ fontSize:"10px",color:"#666",marginTop:"2px" }}>{item.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Alertas explicativos */}
+            <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"20px" }}>
+              <div style={{ fontSize:"11px",color:"#888",letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🤖 ANÁLISE DA IA — O QUE ENCONTRAMOS</div>
+              <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
+                {alertas.map((a,i)=>{
+                  const cores = {
+                    critico: { bg:"rgba(255,77,109,0.08)", border:"rgba(255,77,109,0.25)", text:"#ff4d6d" },
+                    atencao: { bg:"rgba(255,214,10,0.08)",  border:"rgba(255,214,10,0.25)",  text:"#ffd60a" },
+                    info:    { bg:"rgba(0,212,170,0.06)",   border:"rgba(0,212,170,0.2)",    text:"#00d4aa" },
+                    ok:      { bg:"rgba(0,212,100,0.06)",   border:"rgba(0,212,100,0.2)",    text:"#00d464" },
+                  };
+                  const cor = cores[a.nivel] || cores.info;
+                  return (
+                    <div key={i} style={{ background:cor.bg, border:`1px solid ${cor.border}`, borderRadius:"8px", padding:"14px 16px" }}>
+                      <div style={{ display:"flex",alignItems:"center",gap:"10px",marginBottom:"6px" }}>
+                        <span style={{ fontSize:"18px" }}>{a.icone}</span>
+                        <span style={{ fontSize:"13px",fontWeight:"800",color:cor.text }}>{a.titulo}</span>
+                      </div>
+                      <p style={{ margin:0,fontSize:"12px",color:"#ccc",lineHeight:"1.7" }}>{a.texto}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top fornecedores */}
+            {despesas.length > 0 && (() => {
+              const porForn = {};
+              despesas.forEach(d => {
+                if (!d.nomeFornecedor) return;
+                if (!porForn[d.nomeFornecedor]) porForn[d.nomeFornecedor] = { total:0, count:0, cnpj: d.cnpjCpfFornecedor };
+                porForn[d.nomeFornecedor].total += d.valorLiquido||0;
+                porForn[d.nomeFornecedor].count += 1;
+              });
+              const top = Object.entries(porForn).sort((a,b)=>b[1].total-a[1].total).slice(0,5);
+              return (
+                <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"20px" }}>
+                  <div style={{ fontSize:"11px",color:"#888",letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700" }}>🏆 QUEM MAIS RECEBEU DINHEIRO DESTE DEPUTADO</div>
+                  {top.map(([nome,info],i)=>(
+                    <div key={i} style={{ display:"flex",alignItems:"center",gap:"12px",padding:"10px 0",borderBottom:i<top.length-1?"1px solid rgba(255,255,255,0.05)":"none" }}>
+                      <div style={{ width:"24px",height:"24px",borderRadius:"50%",background:"rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:"800",color:"#888",flexShrink:0 }}>{i+1}</div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:"12px",fontWeight:"700",color:"#f0f0f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{nome}</div>
+                        <div style={{ fontSize:"10px",color:"#666",marginTop:"2px" }}>{info.count} pagamento{info.count>1?"s":""}</div>
+                      </div>
+                      <div style={{ fontSize:"14px",fontWeight:"800",color:info.total>20000?"#ff4d6d":info.total>8000?"#ffd60a":"#aaa",flexShrink:0 }}>{fmtBRL(info.total)}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
         ) : aba==="despesas" ? (
           <div style={{ display:"flex",flexDirection:"column",gap:"8px" }}>
             {despesas.length===0 && (
@@ -208,79 +333,56 @@ function TelaPerfilDeputado({ dep, onVoltar, s }) {
                 Nenhuma despesa registrada em 2024
               </div>
             )}
-            {/* Resumo total */}
-            {despesas.length > 0 && (() => {
-              const total = despesas.reduce((s,d)=>s+(d.valorLiquido||0),0);
-              const fornecedores = new Set(despesas.map(d=>d.cnpjCpfFornecedor).filter(Boolean)).size;
-              return (
-                <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",marginBottom:"8px" }}>
-                  {[
-                    { label:"TOTAL GASTO",    valor: fmtBRL(total),          icon:"💰" },
-                    { label:"TRANSAÇÕES",     valor: despesas.length,         icon:"🧾" },
-                    { label:"FORNECEDORES",   valor: fornecedores,            icon:"🏢" },
-                  ].map((item,i)=>(
-                    <div key={i} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"12px 14px",textAlign:"center" }}>
-                      <div style={{ fontSize:"18px",marginBottom:"4px" }}>{item.icon}</div>
-                      <div style={{ fontSize:"14px",fontWeight:"800",color:"#f0f0f0" }}>{item.valor}</div>
-                      <div style={{ fontSize:"9px",color:"#888",letterSpacing:"0.08em",marginTop:"3px" }}>{item.label}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-            {/* Lista de despesas */}
-            {despesas.slice(0,30).map((d,i)=>{
+            {despesas.slice(0,50).map((d,i)=>{
               const cv = corValor(d.valorLiquido||0);
               const icone = iconeDespesa(d.tipoDespesa);
               const data = d.dataDocumento?.substring(0,10) || "";
               const [ano,mes,dia] = data.split("-");
               const dataFmt = data ? `${dia}/${mes}/${ano}` : "—";
               return (
-                <div key={i} style={{ display:"flex",gap:"14px",alignItems:"center",background:"rgba(255,255,255,0.04)",border:`1px solid ${cv.bg ? cv.bg.replace("0.1","0.25") : "rgba(255,255,255,0.08)"}`,borderLeft:`3px solid ${cv.cor}`,borderRadius:"8px",padding:"14px 16px",transition:"background 0.15s" }}>
-                  {/* Ícone categoria */}
+                <div key={i} style={{ display:"flex",gap:"14px",alignItems:"center",background:"rgba(255,255,255,0.04)",borderLeft:`3px solid ${cv.cor}`,border:`1px solid rgba(255,255,255,0.08)`,borderRadius:"8px",padding:"14px 16px" }}>
                   <div style={{ fontSize:"22px",flexShrink:0,width:"32px",textAlign:"center" }}>{icone}</div>
-                  {/* Info principal */}
                   <div style={{ flex:1,minWidth:0 }}>
-                    <div style={{ fontSize:"13px",fontWeight:"700",color:"#f5f5f5",marginBottom:"4px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
+                    <div style={{ fontSize:"13px",fontWeight:"700",color:"#f5f5f5",marginBottom:"5px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
                       {d.nomeFornecedor || "Fornecedor não informado"}
                     </div>
-                    <div style={{ display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center" }}>
+                    <div style={{ display:"flex",gap:"6px",flexWrap:"wrap",alignItems:"center" }}>
                       <span style={{ fontSize:"10px",color:"#ddd",background:"rgba(255,255,255,0.08)",padding:"2px 8px",borderRadius:"3px",fontWeight:"600" }}>
-                        {d.tipoDespesa?.substring(0,40) || "Sem categoria"}
+                        {d.tipoDespesa?.substring(0,38) || "Sem categoria"}
                       </span>
                       {d.cnpjCpfFornecedor && (
-                        <span style={{ fontSize:"10px",color:"#888",fontFamily:"monospace" }}>
-                          {d.cnpjCpfFornecedor.length === 14
-                            ? d.cnpjCpfFornecedor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5")
-                            : d.cnpjCpfFornecedor}
+                        <span style={{ fontSize:"10px",color:"#777",fontFamily:"monospace" }}>
+                          CNPJ: {d.cnpjCpfFornecedor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5")}
                         </span>
                       )}
                     </div>
                   </div>
-                  {/* Data + Valor */}
                   <div style={{ textAlign:"right",flexShrink:0 }}>
                     <div style={{ fontSize:"15px",fontWeight:"800",color:cv.cor }}>{fmtBRL(d.valorLiquido||0)}</div>
-                    <div style={{ fontSize:"10px",color:"#999",marginTop:"4px" }}>{dataFmt}</div>
-                    {cv.label && (
-                      <span style={{ fontSize:"9px",padding:"1px 6px",borderRadius:"3px",background:cv.bg,color:cv.cor,fontWeight:"700",letterSpacing:"0.06em",marginTop:"4px",display:"inline-block" }}>{cv.label}</span>
-                    )}
+                    <div style={{ fontSize:"10px",color:"#777",marginTop:"4px" }}>{dataFmt}</div>
+                    {cv.label && <span style={{ fontSize:"9px",padding:"1px 6px",borderRadius:"3px",background:cv.bg,color:cv.cor,fontWeight:"700",marginTop:"4px",display:"inline-block" }}>{cv.label}</span>}
                   </div>
                 </div>
               );
             })}
           </div>
+
         ) : (
-          <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"8px",padding:"22px" }}>
-            <div style={{ fontSize:"11px",color:"#aaa",letterSpacing:"0.1em",marginBottom:"20px",fontWeight:"600" }}>GASTOS POR CATEGORIA — 2024</div>
+          <div style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"22px" }}>
+            <div style={{ fontSize:"11px",color:"#aaa",letterSpacing:"0.1em",marginBottom:"20px",fontWeight:"700" }}>📊 ONDE O DINHEIRO FOI GASTO — 2024</div>
             {tiposOrdenados.map(([tipo,valor],i)=>(
-              <div key={i} style={{ marginBottom:"12px" }}>
-                <div style={{ display:"flex",justifyContent:"space-between",marginBottom:"4px" }}>
-                  <span style={{ fontSize:"11px",color:"#ddd",fontWeight:"500" }}>{tipo.substring(0,48)}</span>
-                  <span style={{ fontSize:"11px",fontWeight:"800",color:"#f0f0f0" }}>{fmtBRL(valor)}</span>
+              <div key={i} style={{ marginBottom:"16px" }}>
+                <div style={{ display:"flex",justifyContent:"space-between",marginBottom:"6px",alignItems:"center" }}>
+                  <span style={{ fontSize:"12px",color:"#ddd",fontWeight:"600",display:"flex",alignItems:"center",gap:"8px" }}>
+                    <span>{iconeDespesa(tipo)}</span>
+                    <span>{tipo.substring(0,42)}</span>
+                  </span>
+                  <span style={{ fontSize:"13px",fontWeight:"800",color:"#f0f0f0",flexShrink:0,marginLeft:"8px" }}>{fmtBRL(valor)}</span>
                 </div>
-                <div style={{ height:"6px",background:"rgba(255,255,255,0.08)",borderRadius:"3px" }}>
-                  <div style={{ height:"100%",borderRadius:"3px",width:`${(valor/maxV)*100}%`,background:`linear-gradient(90deg,${c.dot},${c.dot}77)` }} />
+                <div style={{ height:"7px",background:"rgba(255,255,255,0.07)",borderRadius:"4px" }}>
+                  <div style={{ height:"100%",borderRadius:"4px",width:`${(valor/maxV)*100}%`,background:`linear-gradient(90deg,${c.dot},${c.dot}88)`,transition:"width 0.5s" }} />
                 </div>
+                <div style={{ fontSize:"10px",color:"#555",marginTop:"4px" }}>{Math.round((valor/total)*100)}% do total gasto</div>
               </div>
             ))}
           </div>
