@@ -952,6 +952,403 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
   );
 }
 
+
+// ── Constantes Senado ──────────────────────────────────────────────────────────
+const SENADO_API = "https://legis.senado.leg.br/dadosabertos";
+
+const TEMAS_SENADO = [
+  { id:"reform-trib-sf", emoji:"💰", titulo:"Reforma Tributária", subtitulo:"PEC 45/2019 no Senado",
+    descricao:"Aprovação no Senado da maior reforma tributária desde 1988. 53 votos a favor, 24 contra.",
+    data:"Nov 2023", sessaoId:"6777", periodo:"20231101/20231130",
+    resultado:{sim:53,nao:24,abstencao:4}, aprovado:true, categoria:"economia" },
+  { id:"marco-temporal-sf", emoji:"🌿", titulo:"Marco Temporal Terras Indígenas", subtitulo:"PL 2903/2023 no Senado",
+    descricao:"Aprovação no Senado do Marco Temporal. 43 a favor, 21 contra. STF derrubou parcialmente depois.",
+    data:"Set 2023", sessaoId:"6756", periodo:"20230901/20231031",
+    resultado:{sim:43,nao:21,abstencao:17}, aprovado:true, categoria:"direitos" },
+  { id:"arcabouco-sf", emoji:"📊", titulo:"Arcabouço Fiscal", subtitulo:"PEC 8/2021 no Senado",
+    descricao:"Novo marco fiscal substituindo o teto de gastos. Aprovado com 52 votos a favor.",
+    data:"Nov 2023", sessaoId:"6781", periodo:"20231101/20231130",
+    resultado:{sim:52,nao:18,abstencao:11}, aprovado:true, categoria:"economia" },
+  { id:"pec45-sf-destaques", emoji:"🏦", titulo:"Reforma Tributária — Destaques", subtitulo:"PEC 45/2019 emendas",
+    descricao:"Votação de emenda polêmica à Reforma Tributária que foi rejeitada pelo Senado.",
+    data:"Nov 2023", sessaoId:"6774", periodo:"20231101/20231130",
+    resultado:{sim:31,nao:41,abstencao:9}, aprovado:false, categoria:"economia" },
+  { id:"pec-seguranca-sf", emoji:"🚔", titulo:"PEC da Segurança Pública", subtitulo:"PEC 66/2023 no Senado",
+    descricao:"Proposta que alterou a Constituição para reforçar o papel da segurança pública. 2 turnos.",
+    data:"Ago 2024", sessaoId:"6868", periodo:"20240801/20240901",
+    resultado:{sim:0,nao:0,abstencao:0}, aprovado:true, categoria:"direitos" },
+  { id:"plp-regulacao-sf", emoji:"🏛️", titulo:"Regulação das Plataformas Digitais", subtitulo:"PL 2.630/2023",
+    descricao:"Votação sobre urgência do Marco das Plataformas no Senado. Resultado dividido.",
+    data:"Out 2023", sessaoId:"6761", periodo:"20230901/20231031",
+    resultado:{sim:24,nao:46,abstencao:11}, aprovado:false, categoria:"liberdades" },
+];
+
+
+// ── Tela Senado ───────────────────────────────────────────────────────────────
+function TelaSenado({ s, tema, setTema, setTela }) {
+  const T = s.T; const dark = tema === "dark";
+  const [senadores, setSenadores] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [senadorSel, setSenadorSel] = useState(null);
+  const [busca, setBusca] = useState("");
+  const [filtPartido, setFiltPartido] = useState("Todos");
+  const [filtUf, setFiltUf] = useState("Todos");
+  const [abaVot, setAbaVot] = useState(null); // tema votação selecionado
+  const [votosVot, setVotosVot] = useState([]);
+  const [carregVot, setCarregVot] = useState(false);
+  const [filtVoto, setFiltVoto] = useState("todos");
+  const [filtBusca, setFiltBusca] = useState("");
+  // Perfil senador
+  const [votosSenad, setVotosSenad] = useState({});
+  const [carregVotSenad, setCarregVotSenad] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`${SENADO_API}/senador/lista/atual.json`);
+        const d = await r.json();
+        const lista = d?.ListaParlamentarEmExercicio?.Parlamentares?.Parlamentar || [];
+        setSenadores(lista.map(s => ({
+          id: s.IdentificacaoParlamentar.CodigoParlamentar,
+          nome: s.IdentificacaoParlamentar.NomeParlamentar,
+          nomeCompleto: s.IdentificacaoParlamentar.NomeCompletoParlamentar,
+          partido: s.IdentificacaoParlamentar.SiglaPartidoParlamentar,
+          uf: s.IdentificacaoParlamentar.UfParlamentar,
+          foto: s.IdentificacaoParlamentar.UrlFotoParlamentar,
+          email: s.IdentificacaoParlamentar.EmailParlamentar,
+          sexo: s.IdentificacaoParlamentar.SexoParlamentar,
+        })));
+      } catch {}
+      setCarregando(false);
+    })();
+  }, []);
+
+  const carregarVotacaoTema = async (tema) => {
+    setAbaVot(tema); setVotosVot([]); setCarregVot(true);
+    setFiltVoto("todos"); setFiltBusca("");
+    try {
+      const r = await fetch(`${SENADO_API}/plenario/lista/votacao/${tema.periodo}.json`);
+      const d = await r.json();
+      const vs = d?.ListaVotacoes?.Votacoes?.Votacao || [];
+      const vot = vs.find(v => v.CodigoSessaoVotacao === tema.sessaoId);
+      if (vot) {
+        setVotosVot(vot.Votos?.VotoParlamentar || []);
+        // Atualiza resultado real
+        tema.resultado_real = vot.Votos?.VotoParlamentar || [];
+      }
+    } catch {}
+    setCarregVot(false);
+  };
+
+  const carregarVotosSenador = async (sen) => {
+    setSenadorSel(sen); setVotosSenad({}); setCarregVotSenad(true);
+    const resultado = {};
+    await Promise.allSettled(TEMAS_SENADO.map(async (tema) => {
+      try {
+        const r = await fetch(`${SENADO_API}/plenario/lista/votacao/${tema.periodo}.json`);
+        const d = await r.json();
+        const vs = d?.ListaVotacoes?.Votacoes?.Votacao || [];
+        const vot = vs.find(v => v.CodigoSessaoVotacao === tema.sessaoId);
+        if (vot) {
+          const vp = (vot.Votos?.VotoParlamentar || []).find(v => v.CodigoParlamentar === sen.id);
+          resultado[tema.id] = vp?.Voto || "Ausente";
+        } else resultado[tema.id] = "Ausente";
+      } catch { resultado[tema.id] = "Ausente"; }
+    }));
+    setVotosSenad(resultado);
+    setCarregVotSenad(false);
+  };
+
+  const partidos = ["Todos", ...new Set(senadores.map(s => s.partido).filter(Boolean))].sort();
+  const ufs = ["Todos", ...new Set(senadores.map(s => s.uf).filter(Boolean))].sort();
+
+  const senadoresFiltrados = senadores.filter(s => {
+    if (busca && !s.nome.toLowerCase().includes(busca.toLowerCase()) && !s.partido?.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (filtPartido !== "Todos" && s.partido !== filtPartido) return false;
+    if (filtUf !== "Todos" && s.uf !== filtUf) return false;
+    return true;
+  });
+
+  const corVoto = t => { const v=t?.toLowerCase(); return v==="sim"?"#00d464":v==="não"||v==="nao"?"#ff4d6d":v==="ausente"||v==="abstencao"?T.textMuted:"#ffd60a"; };
+  const bgVoto  = t => { const v=t?.toLowerCase(); return v==="sim"?"rgba(0,212,100,0.1)":v==="não"||v==="nao"?"rgba(255,77,109,0.1)":"transparent"; };
+  const emVoto  = t => { const v=t?.toLowerCase(); return v==="sim"?"✅":v==="não"||v==="nao"?"❌":v==="ausente"?"⬜":"🟡"; };
+
+  const votosFiltrados = votosVot.filter(v => {
+    if (filtBusca && !v.NomeParlamentar?.toLowerCase().includes(filtBusca.toLowerCase()) && !v.SiglaPartido?.toLowerCase().includes(filtBusca.toLowerCase())) return false;
+    if (filtVoto !== "todos" && v.Voto?.toLowerCase() !== filtVoto) return false;
+    return true;
+  });
+
+  // Tela perfil senador
+  if (senadorSel) {
+    const sim = Object.values(votosSenad).filter(v => v?.toLowerCase() === "sim").length;
+    const nao = Object.values(votosSenad).filter(v => v?.toLowerCase() === "não" || v?.toLowerCase() === "nao").length;
+    const aus = Object.values(votosSenad).filter(v => v === "Ausente").length;
+    return (
+      <div style={s.app}>
+        <div style={s.grid}/>
+        <nav style={s.nav}>
+          <div style={s.logo} onClick={()=>setSenadorSel(null)}><IconShield/> ANTICORRUPÇÃO.BR</div>
+          <div style={s.navLinks}>
+            <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
+            <button style={s.navBtn(true)}>🏛️ SENADO</button>
+            <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
+            <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
+              {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
+            </button>
+          </div>
+        </nav>
+        <div style={{...s.main,maxWidth:"800px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
+            <span onClick={()=>setSenadorSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>Senado</span>
+            <span style={{color:T.textMuted}}>›</span>
+            <span style={{color:T.textSecondary,fontWeight:"500"}}>{senadorSel.nome}</span>
+          </div>
+          {/* Card senador */}
+          <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"22px",marginBottom:"22px",display:"flex",gap:"20px",alignItems:"center"}}>
+            <img src={senadorSel.foto} alt="" style={{width:"76px",height:"76px",borderRadius:"50%",objectFit:"cover",border:"3px solid #00d4aa",flexShrink:0}}
+              onError={e=>{e.target.style.display="none"}}/>
+            <div style={{flex:1}}>
+              <h2 style={{margin:"0 0 8px",fontSize:"20px",fontWeight:"800",color:T.textPrimary}}>{senadorSel.nome}</h2>
+              <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+                {[senadorSel.partido, senadorSel.uf, "Senador(a) Federal"].map((t,i)=>(
+                  <span key={i} style={{fontSize:"11px",padding:"4px 12px",borderRadius:"4px",background:T.tagBg,color:T.tagText,letterSpacing:"0.06em",fontWeight:"700"}}>{t}</span>
+                ))}
+              </div>
+              {senadorSel.email && <div style={{fontSize:"11px",color:T.textMuted,marginTop:"8px"}}>✉️ {senadorSel.email}</div>}
+            </div>
+          </div>
+          {/* Resumo votos */}
+          <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"12px"}}>🗳️ VOTAÇÕES EM TEMAS SENSÍVEIS</div>
+          {carregVotSenad && <div style={{textAlign:"center",padding:"40px",color:T.textSecondary}}>⏳ Buscando votos...</div>}
+          {!carregVotSenad && (<>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",marginBottom:"16px"}}>
+              {[{l:"SIM",v:sim,cor:"#00d464",bg:"rgba(0,212,100,0.1)",em:"✅"},{l:"NÃO",v:nao,cor:"#ff4d6d",bg:"rgba(255,77,109,0.1)",em:"❌"},{l:"AUSENTE",v:aus,cor:T.textMuted,bg:T.tagBg,em:"⬜"}].map((item,i)=>(
+                <div key={i} style={{background:item.bg,border:`1px solid ${item.cor}33`,borderRadius:"8px",padding:"14px",textAlign:"center"}}>
+                  <div style={{fontSize:"22px",marginBottom:"4px"}}>{item.em}</div>
+                  <div style={{fontSize:"20px",fontWeight:"800",color:item.cor}}>{item.v}</div>
+                  <div style={{fontSize:"9px",color:T.textLabel,marginTop:"3px",letterSpacing:"0.06em"}}>{item.l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+              {TEMAS_SENADO.map(tema=>{
+                const voto = votosSenad[tema.id] || "—";
+                const cor = corVoto(voto); const bg = bgVoto(voto); const em = emVoto(voto);
+                const catCor = tema.categoria==="economia"?"#00d4aa":tema.categoria==="direitos"?"#a78bfa":"#fb923c";
+                return (
+                  <div key={tema.id} style={{background:bg,border:`1px solid ${cor}33`,borderRadius:"10px",padding:"14px 16px",display:"flex",gap:"12px",alignItems:"center"}}>
+                    <div style={{fontSize:"22px",flexShrink:0}}>{tema.emoji}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px",flexWrap:"wrap"}}>
+                        <span style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary}}>{tema.titulo}</span>
+                        <span style={{fontSize:"9px",color:catCor,background:`${catCor}22`,padding:"1px 7px",borderRadius:"10px",fontWeight:"700"}}>{tema.categoria.toUpperCase()}</span>
+                      </div>
+                      <div style={{fontSize:"10px",color:T.textSecondary}}>{tema.subtitulo} · {tema.data}</div>
+                    </div>
+                    <div style={{flexShrink:0,textAlign:"center"}}>
+                      <div style={{fontSize:"20px"}}>{em}</div>
+                      <div style={{fontSize:"10px",fontWeight:"800",color:cor,marginTop:"2px"}}>{voto.toUpperCase()}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>)}
+        </div>
+      </div>
+    );
+  }
+
+  // Tela detalhe votação
+  if (abaVot) {
+    const sim = votosVot.filter(v=>v.Voto?.toLowerCase()==="sim").length;
+    const nao = votosVot.filter(v=>v.Voto?.toLowerCase()==="não").length;
+    const tot = votosVot.length;
+    return (
+      <div style={s.app}>
+        <div style={s.grid}/>
+        <nav style={s.nav}>
+          <div style={s.logo} onClick={()=>setAbaVot(null)}><IconShield/> ANTICORRUPÇÃO.BR</div>
+          <div style={s.navLinks}>
+            <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
+            <button style={s.navBtn(true)}>🏛️ SENADO</button>
+            <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
+            <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
+              {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
+            </button>
+          </div>
+        </nav>
+        <div style={{...s.main,maxWidth:"860px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
+            <span onClick={()=>setAbaVot(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>Senado</span>
+            <span style={{color:T.textMuted}}>›</span>
+            <span style={{color:T.textSecondary}}>{abaVot.titulo}</span>
+          </div>
+          {/* Header tema */}
+          <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"20px",marginBottom:"20px"}}>
+            <div style={{display:"flex",gap:"14px"}}>
+              <span style={{fontSize:"32px"}}>{abaVot.emoji}</span>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap",marginBottom:"6px"}}>
+                  <h2 style={{margin:0,fontSize:"17px",fontWeight:"800",color:T.textPrimary}}>{abaVot.titulo}</h2>
+                  <span style={{fontSize:"10px",color:T.textMuted,background:T.tagBg,padding:"2px 8px",borderRadius:"10px",fontWeight:"600"}}>{abaVot.subtitulo} · {abaVot.data}</span>
+                </div>
+                <p style={{margin:"0 0 12px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.6"}}>{abaVot.descricao}</p>
+                {tot > 0 && (<>
+                  <div style={{display:"flex",height:"10px",borderRadius:"5px",overflow:"hidden",marginBottom:"8px",gap:"2px"}}>
+                    <div style={{width:`${(sim/tot)*100}%`,background:"#00d464"}}/>
+                    <div style={{width:`${(nao/tot)*100}%`,background:"#ff4d6d"}}/>
+                    <div style={{flex:1,background:"#ffd60a44"}}/>
+                  </div>
+                  <div style={{display:"flex",gap:"16px",fontSize:"12px",flexWrap:"wrap"}}>
+                    <span style={{color:"#00d464",fontWeight:"800"}}>✅ {sim} SIM ({Math.round(sim/tot*100)}%)</span>
+                    <span style={{color:"#ff4d6d",fontWeight:"800"}}>❌ {nao} NÃO ({Math.round(nao/tot*100)}%)</span>
+                    <span style={{color:T.textMuted}}>{tot} senadores</span>
+                  </div>
+                </>)}
+              </div>
+            </div>
+          </div>
+          {/* Filtros */}
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"8px",padding:"12px 14px",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"7px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",flex:"1",minWidth:"160px"}}>
+              <IconSearch/><input value={filtBusca} onChange={e=>setFiltBusca(e.target.value)} placeholder="Buscar senador ou partido..."
+                style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",width:"100%"}}/>
+            </div>
+            {["todos","sim","não"].map(vt=>(
+              <button key={vt} onClick={()=>setFiltVoto(vt)} style={{
+                padding:"5px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+                background:filtVoto===vt?(vt==="sim"?"rgba(0,212,100,0.2)":vt==="não"?"rgba(255,77,109,0.2)":T.accentDim):T.tagBg,
+                color:filtVoto===vt?(vt==="sim"?"#00d464":vt==="não"?"#ff4d6d":"#00d4aa"):T.textSecondary,
+                border:`1px solid ${filtVoto===vt?(vt==="sim"?"#00d46444":vt==="não"?"#ff4d6d44":"#00d4aa44"):T.inputBorder}`,
+              }}>{vt==="todos"?"Todos":vt==="sim"?"✅ SIM":"❌ NÃO"}</button>
+            ))}
+            <span style={{fontSize:"10px",color:T.textMuted}}>{votosFiltrados.length} senadores</span>
+          </div>
+          {carregVot && <div style={{textAlign:"center",padding:"60px",color:T.textSecondary}}>⏳ Carregando votos...</div>}
+          {!carregVot && (
+            <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+              {votosFiltrados.map((v,i)=>{
+                const cor=corVoto(v.Voto); const bg=bgVoto(v.Voto);
+                return (
+                  <div key={i} onClick={()=>carregarVotosSenador(senadores.find(s=>s.id===v.CodigoParlamentar)||{id:v.CodigoParlamentar,nome:v.NomeParlamentar,partido:v.SiglaPartido,uf:v.SiglaUF,foto:v.Foto})}
+                    style={{display:"flex",alignItems:"center",gap:"12px",background:bg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"10px 14px",cursor:"pointer"}}>
+                    <span style={{fontSize:"18px",flexShrink:0}}>{emVoto(v.Voto)}</span>
+                    <img src={v.Foto} alt="" style={{width:"32px",height:"32px",borderRadius:"50%",objectFit:"cover",border:`2px solid ${cor}`,flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary}}>{v.NomeParlamentar}</div>
+                      <div style={{fontSize:"10px",color:T.textSecondary}}>{v.SiglaPartido} · {v.SiglaUF}</div>
+                    </div>
+                    <span style={{fontSize:"11px",fontWeight:"800",color:cor,flexShrink:0,padding:"3px 10px",borderRadius:"4px",background:`${cor}22`,border:`1px solid ${cor}44`}}>
+                      {v.Voto?.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Tela principal — lista senadores
+  return (
+    <div style={s.app}>
+      <div style={s.grid}/>
+      <nav style={s.nav}>
+        <div style={s.logo}><IconShield/> ANTICORRUPÇÃO.BR</div>
+        <div style={s.navLinks}>
+          <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
+          <button style={s.navBtn(true)}>🏛️ SENADO</button>
+          <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
+          <button style={s.navBtn(false)} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
+          <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
+            {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
+          </button>
+        </div>
+      </nav>
+      <div style={{...s.main,maxWidth:"1100px"}}>
+        {/* Header */}
+        <div style={{marginBottom:"20px"}}>
+          <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>SENADO FEDERAL · 81 SENADORES</div>
+          <h1 style={{margin:0,fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>Senado Federal</h1>
+          <p style={{margin:"8px 0 0",fontSize:"13px",color:T.textSecondary}}>Clique em um senador para ver como votou nos temas sensíveis. Dados oficiais API do Senado.</p>
+        </div>
+
+        {/* Votações do Senado */}
+        <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"18px",marginBottom:"20px"}}>
+          <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"14px"}}>🗳️ TEMAS SENSÍVEIS NO SENADO — clique para ver cada voto</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+            {TEMAS_SENADO.map(tema=>{
+              const {sim,nao}=tema.resultado; const tot=sim+nao+(tema.resultado.abstencao||0);
+              const pS=tot>0?Math.round(sim/tot*100):0; const pN=tot>0?Math.round(nao/tot*100):0;
+              return (
+                <div key={tema.id} onClick={()=>carregarVotacaoTema(tema)}
+                  style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"8px",padding:"14px 16px",cursor:"pointer",display:"flex",gap:"12px",alignItems:"center"}}>
+                  <span style={{fontSize:"22px",flexShrink:0}}>{tema.emoji}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px",flexWrap:"wrap"}}>
+                      <span style={{fontSize:"13px",fontWeight:"700",color:T.textPrimary}}>{tema.titulo}</span>
+                      <span style={{fontSize:"9px",color:T.textMuted,background:T.tagBg,padding:"1px 7px",borderRadius:"10px",fontWeight:"600"}}>{tema.subtitulo}</span>
+                      <span style={{fontSize:"9px",color:T.textMuted}}>{tema.data}</span>
+                    </div>
+                    {tot > 0 && (
+                      <div style={{display:"flex",gap:"12px",fontSize:"10px"}}>
+                        <span style={{color:"#00d464",fontWeight:"700"}}>✅ {sim} SIM ({pS}%)</span>
+                        <span style={{color:"#ff4d6d",fontWeight:"700"}}>❌ {nao} NÃO ({pN}%)</span>
+                        <span style={{color:T.textMuted}}>→ clique para detalhar</span>
+                      </div>
+                    )}
+                  </div>
+                  <span style={{color:"#00d4aa",fontSize:"16px"}}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Filtros senadores */}
+        <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"16px",alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"7px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"7px 12px",flex:"1",minWidth:"200px"}}>
+            <IconSearch/><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar senador ou partido..."
+              style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"13px",fontFamily:"inherit",width:"100%"}}/>
+          </div>
+          <select value={filtPartido} onChange={e=>setFiltPartido(e.target.value)}
+            style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
+            {partidos.map(p=><option key={p} value={p} style={{background:T.selectBg}}>{p}</option>)}
+          </select>
+          <select value={filtUf} onChange={e=>setFiltUf(e.target.value)}
+            style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
+            {ufs.map(u=><option key={u} value={u} style={{background:T.selectBg}}>{u}</option>)}
+          </select>
+          <span style={{fontSize:"11px",color:T.textMuted}}>{senadoresFiltrados.length} senadores</span>
+        </div>
+
+        {/* Grid senadores */}
+        {carregando ? (
+          <div style={{textAlign:"center",padding:"60px",color:T.textSecondary}}>⏳ Carregando senadores...</div>
+        ) : (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"10px"}}>
+            {senadoresFiltrados.map(sen=>(
+              <div key={sen.id} onClick={()=>carregarVotosSenador(sen)}
+                style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"10px",padding:"14px",cursor:"pointer",display:"flex",gap:"12px",alignItems:"center"}}>
+                <img src={sen.foto} alt="" style={{width:"44px",height:"44px",borderRadius:"50%",objectFit:"cover",border:"2px solid #00d4aa44",flexShrink:0}}
+                  onError={e=>{e.target.style.background="#1a1f2e";e.target.style.display="none"}}/>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{sen.nome}</div>
+                  <div style={{fontSize:"10px",color:T.textSecondary,marginTop:"2px"}}>{sen.partido} · {sen.uf}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AntiCorrupcaoBR() {
   const [tela, setTela] = useState("lista");
   const [deputados, setDeputados] = useState([]);
@@ -1105,6 +1502,7 @@ export default function AntiCorrupcaoBR() {
   if (depSelecionado) return <TelaPerfilDeputado dep={depSelecionado} onVoltar={() => setDepSelecionado(null)} s={s} tema={tema} setTema={setTema} />;
   if (tela === "upload") return <TelaUpload s={s} setTela={setTela} tema={tema} setTema={setTema} />;
   if (tela === "votacoes") return <TelaVotacoes s={s} tema={tema} setTema={setTema} setTela={setTela} />;
+  if (tela === "senado") return <TelaSenado s={s} tema={tema} setTema={setTema} setTela={setTela} />;
 
   return (
     <div style={s.app}>
@@ -1113,6 +1511,7 @@ export default function AntiCorrupcaoBR() {
         <div style={s.logo}><IconShield /> ANTICORRUPÇÃO.BR</div>
         <div style={s.navLinks}>
           <button style={s.navBtn(tela==="lista")} onClick={()=>setTela("lista")}>DEPUTADOS</button>
+          <button style={s.navBtn(tela==="senado")} onClick={()=>setTela("senado")}>🏛️ SENADO</button>
           <button style={s.navBtn(tela==="votacoes")} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
           <button style={s.navBtn(tela==="upload")} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
           <button onClick={()=>setTema(dark?"light":"dark")} style={{ marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit" }}>{dark?"☀️":"🌙"}<span style={{ fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em" }}>{dark?"CLARO":"ESCURO"}</span></button>
