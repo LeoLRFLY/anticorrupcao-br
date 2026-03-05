@@ -1066,13 +1066,13 @@ const TEMAS_SENADO = [
 
   { id:"pec-transicao", emoji:"💸", titulo:"PEC da Transição — Furo do Teto", subtitulo:"PEC 32/2022",
     descricao:"Permitiu R$ 168 bilhões extras fora do teto de gastos para financiar Bolsa Família e outras promessas de campanha de Lula. Aprovada em dezembro/2022.",
-    data:"Dez 2022", ano:2022, sessaoId:"6619", periodo:"20221201/20221231",
-    resultado:{sim:64,nao:16,abstencao:0}, aprovado:true, categoria:"economia", imp:4, casa:"senado" },
+    data:"Dez 2022", ano:2022, sessaoId:"6671", periodo:"20221201/20221231",
+    resultado:{sim:63,nao:11,abstencao:7}, aprovado:true, categoria:"economia", imp:4, casa:"senado" },
 
   { id:"pec-combustiveis", emoji:"⛽", titulo:"PEC dos Combustíveis (Kamikaze)", subtitulo:"PEC 15/2022",
     descricao:"Zerou impostos federais sobre combustíveis e criou auxílio-caminhoneiro e vale-gás. Aprovada às vésperas da eleição de 2022 por Bolsonaro.",
-    data:"Jun 2022", ano:2022, sessaoId:"6534", periodo:"20220601/20220630",
-    resultado:{sim:63,nao:13,abstencao:0}, aprovado:true, categoria:"economia", imp:3, casa:"senado" },
+    data:"Jun 2022", ano:2022, sessaoId:"6623", periodo:"20220601/20220831",
+    resultado:{sim:64,nao:13,abstencao:4}, aprovado:true, categoria:"economia", imp:3, casa:"senado" },
 ];
 
 
@@ -1096,28 +1096,27 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
     setTemaSel(t); setVotos([]); setCarregando(true);
     setBusca(""); setFiltVoto("todos"); setFiltPartido("Todos");
     try {
-      if (!t.votacaoId) { setCarregando(false); return; }
-      if (t.casa === "senado") {
+      if (t.casa === "senado" && t.sessaoId && t.periodo) {
+        // Senado: votos individuais reais embutidos no JSON de lista
         const url = `https://legis.senado.leg.br/dadosabertos/plenario/lista/votacao/${t.periodo}.json`;
         const r = await fetch(url);
         const d = await r.json();
         const vs = d?.ListaVotacoes?.Votacoes?.Votacao || [];
-        const vot = vs.find(v => v.CodigoSessaoVotacao === t.sessaoId);
+        const vot = vs.find(v => String(v.CodigoSessaoVotacao) === String(t.sessaoId));
         const senadores = vot?.Votos?.VotoParlamentar || [];
-        setVotos(senadores.map(v => ({
-          nome: v.NomeParlamentar, partido: v.SiglaPartido, uf: v.SiglaUf,
-          voto: v.Voto, urlFoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(v.NomeParlamentar)}&background=1a1f2e&color=00d4aa&size=60`
-        })));
-      } else {
-        const url = `${CAMARA_API}/votacoes/${t.votacaoId}/votos?itens=600`;
-        const r = await fetch(url);
-        const d = await r.json();
-        setVotos((d.dados || []).map(v => ({
-          nome: v.deputado_?.nome || "", partido: v.deputado_?.siglaPartido || "",
-          uf: v.deputado_?.siglaUf || "", voto: v.tipoVoto,
-          urlFoto: v.deputado_?.urlFoto || ""
-        })));
+        const mapeados = senadores.map(v => {
+          // Voto pode ser "Sim", "Não", "Votou" (secreto), "AP", "P-NRV", etc.
+          const votoRaw = v.Voto || "";
+          const votoNorm = votoRaw === "Sim" ? "SIM" : votoRaw === "Não" ? "NÃO" : votoRaw;
+          return {
+            nome: v.NomeParlamentar, partido: v.SiglaPartido, uf: v.SiglaUF || v.SiglaUf,
+            voto: votoNorm,
+            urlFoto: v.Foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.NomeParlamentar)}&background=1a1f2e&color=00d4aa&size=60`
+          };
+        });
+        setVotos(mapeados);
       }
+      // Câmara: API /votacoes/{id}/votos foi desativada — não tenta mais
     } catch(e) { console.error(e); }
     setCarregando(false);
   };
@@ -1221,14 +1220,52 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
           {/* Votos individuais */}
           {carregando ? (
             <div style={{textAlign:"center",padding:"40px",color:T.textMuted}}>⏳ Carregando votos...</div>
-          ) : !temaSel.votacaoId ? (
+          ) : temaSel.casa === "camara" ? (
+            <div style={{background:T.subCardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"12px",padding:"24px"}}>
+              <div style={{textAlign:"center",marginBottom:"20px"}}>
+                <div style={{fontSize:"28px",marginBottom:"8px"}}>⚠️</div>
+                <div style={{fontWeight:"700",color:T.textSecondary,marginBottom:"6px"}}>Votos individuais indisponíveis na Câmara</div>
+                <div style={{fontSize:"12px",color:T.textMuted,maxWidth:"400px",margin:"0 auto",lineHeight:"1.7"}}>
+                  A API da Câmara desativou o endpoint de votos nominais individuais. 
+                  Para ver o voto de cada deputado, acesse o portal oficial:
+                </div>
+                <a href={`https://www.camara.leg.br/internet/votacao/mostraVotacao.asp?ideVotacao=${temaSel.votacaoId?.split("-")[0]}`}
+                  target="_blank" rel="noopener"
+                  style={{display:"inline-block",marginTop:"12px",padding:"8px 18px",borderRadius:"8px",background:"rgba(0,212,170,0.15)",border:"1px solid #00d4aa44",color:"#00d4aa",fontSize:"11px",fontWeight:"800",textDecoration:"none"}}>
+                  🔗 VER NA CÂMARA DOS DEPUTADOS →
+                </a>
+              </div>
+              {/* Placar por partido baseado nos dados curados */}
+              {temaSel.resultado.sim !== null && (
+                <div style={{borderTop:`1px solid ${T.divider}`,paddingTop:"16px"}}>
+                  <div style={{fontSize:"11px",color:T.textMuted,marginBottom:"12px",fontWeight:"700",letterSpacing:"0.08em"}}>PLACAR OFICIAL DA VOTAÇÃO</div>
+                  <div style={{display:"flex",gap:"12px",flexWrap:"wrap"}}>
+                    {[
+                      {v:temaSel.resultado.sim, l:"SIM", c:"#00d464"},
+                      {v:temaSel.resultado.nao, l:"NÃO", c:"#ff4d6d"},
+                      {v:temaSel.resultado.abstencao, l:"ABST", c:"#ffd60a"},
+                    ].filter(x=>x.v>0).map((item,i)=>(
+                      <div key={i} style={{background:`${item.c}15`,border:`1px solid ${item.c}44`,borderRadius:"8px",padding:"12px 18px",textAlign:"center"}}>
+                        <div style={{fontSize:"22px",fontWeight:"800",color:item.c}}>{item.v}</div>
+                        <div style={{fontSize:"9px",color:item.c,fontWeight:"700",letterSpacing:"0.1em"}}>{item.l}</div>
+                      </div>
+                    ))}
+                    <div style={{background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"8px",padding:"12px 18px",textAlign:"center",marginLeft:"auto"}}>
+                      <div style={{fontSize:"14px",fontWeight:"800",color:temaSel.aprovado?"#00d464":"#ff4d6d"}}>{temaSel.aprovado?"✓ APROVADA":"✗ REJEITADA"}</div>
+                      <div style={{fontSize:"9px",color:T.textMuted,fontWeight:"600",letterSpacing:"0.08em"}}>RESULTADO</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : !temaSel.sessaoId ? (
             <div style={{textAlign:"center",padding:"40px",color:T.textMuted,background:T.subCardBg,borderRadius:"12px"}}>
               <div style={{fontSize:"32px",marginBottom:"12px"}}>📋</div>
               <div style={{fontWeight:"700",color:T.textSecondary,marginBottom:"6px"}}>Votos individuais não disponíveis</div>
               <div style={{fontSize:"12px"}}>Esta votação ainda está em tramitação ou os dados não estão na API pública.</div>
             </div>
           ) : votos.length === 0 ? (
-            <div style={{textAlign:"center",padding:"40px",color:T.textMuted}}>Nenhum voto carregado.</div>
+            <div style={{textAlign:"center",padding:"40px",color:T.textMuted}}>Carregando votos do Senado...</div>
           ) : (<>
             {/* Filtros */}
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",alignItems:"center"}}>
