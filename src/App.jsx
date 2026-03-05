@@ -907,57 +907,175 @@ function TelaUpload({ s, setTela, tema, setTema }) {
 
 // ── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 // ── Tela Votações ─────────────────────────────────────────────────────────────
-const TEMAS_SENSIVEIS = [
-  // ECONOMIA
-  { id:"reforma-trib-1t", emoji:"💰", titulo:"Reforma Tributária — 1º Turno", subtitulo:"PEC 45/2019",
-    descricao:"Substituiu PIS, Cofins, IPI, ICMS e ISS por CBS, IBS e Imposto Seletivo. Maior reforma tributária desde 1988.",
-    data:"Jul 2023", votacaoId:"2196833-373", resultado:{sim:375,nao:113,abstencao:3}, aprovado:true, categoria:"economia" },
-  { id:"reform-trib-2t", emoji:"🏦", titulo:"Reforma Tributária — 2º Turno", subtitulo:"PEC 45/2019",
-    descricao:"Votação final confirmando a aprovação. Compare com o 1º turno para identificar mudanças de posição.",
-    data:"Jul 2023", votacaoId:"2196833-395", resultado:{sim:336,nao:132,abstencao:0}, aprovado:true, categoria:"economia" },
-  { id:"previdencia-1t", emoji:"👴", titulo:"Reforma da Previdência — 1º Turno", subtitulo:"PEC 6/2019",
-    descricao:"Mudou regras de aposentadoria: idade mínima 65H/62M, tempo de contribuição, fim da aposentadoria por tempo.",
-    data:"Jul 2019", votacaoId:"2192459-636", resultado:{sim:379,nao:131,abstencao:0}, aprovado:true, categoria:"economia" },
-  { id:"previdencia-2t", emoji:"📋", titulo:"Reforma da Previdência — 2º Turno", subtitulo:"PEC 6/2019",
-    descricao:"Aprovação definitiva da reforma previdenciária que afetou mais de 57 milhões de trabalhadores.",
-    data:"Ago 2019", votacaoId:"2192459-786", resultado:{sim:370,nao:124,abstencao:1}, aprovado:true, categoria:"economia" },
-  { id:"ir-5k", emoji:"💵", titulo:"Isenção IR até R$ 5 mil", subtitulo:"PL 1087/2025",
-    descricao:"Isenta do Imposto de Renda trabalhadores com salário até R$ 5.000. Aprovado por quase unanimidade.",
-    data:"Out 2025", votacaoId:"2487436-169", resultado:{sim:493,nao:0,abstencao:1}, aprovado:true, categoria:"economia" },
-  { id:"fundeb", emoji:"📚", titulo:"Novo FUNDEB", subtitulo:"PEC 15/2015",
-    descricao:"Tornou permanente o Fundo da Educação Básica e aumentou participação da União de 10% para 23%.",
-    data:"Jul 2020", votacaoId:"1198512-250", resultado:{sim:499,nao:7,abstencao:0}, aprovado:true, categoria:"economia" },
-  // DIREITOS
-  { id:"marco-temporal-1", emoji:"🌿", titulo:"Marco Temporal Terras Indígenas", subtitulo:"PL 490/2007",
-    descricao:"Limitaria demarcação de terras indígenas a ocupações comprovadas em 05/10/1988. Aprovado na Câmara, vetado pelo STF.",
-    data:"Mai 2023", votacaoId:"345311-279", resultado:{sim:290,nao:142,abstencao:1}, aprovado:true, categoria:"direitos" },
-  { id:"marco-temporal-2", emoji:"🏛️", titulo:"Marco Temporal — Aprovação Final", subtitulo:"PL 490/2007",
-    descricao:"Votação da subemenda substitutiva global. Versão aprovada com destaques e emendas.",
-    data:"Mai 2023", votacaoId:"345311-276", resultado:{sim:288,nao:148,abstencao:2}, aprovado:true, categoria:"direitos" },
-  { id:"igualdade-salarial", emoji:"⚖️", titulo:"Igualdade Salarial Mulheres", subtitulo:"PL 1085/2023",
-    descricao:"Obriga empresas a pagar salários iguais para homens e mulheres na mesma função, com multa de 10x o salário.",
-    data:"Mai 2023", votacaoId:"2351179-51", resultado:{sim:325,nao:36,abstencao:3}, aprovado:true, categoria:"direitos" },
-  { id:"piso-enfermagem", emoji:"🏥", titulo:"Piso Salarial da Enfermagem", subtitulo:"PL 2564/2020",
-    descricao:"Estabeleceu piso de R$ 4.750 para enfermeiros, R$ 3.325 para técnicos e R$ 2.375 para auxiliares.",
-    data:"Mai 2022", votacaoId:"2309349-146", resultado:{sim:449,nao:12,abstencao:0}, aprovado:true, categoria:"direitos" },
-  // LIBERDADES E SEGURANÇA
-  { id:"fake-news", emoji:"📱", titulo:"PL das Fake News — Urgência", subtitulo:"PL 2630/2020",
-    descricao:"Responsabilizaria plataformas digitais por desinformação. Aprovação da urgência por margem estreita.",
-    data:"Abr 2023", votacaoId:"2310837-8", resultado:{sim:238,nao:192,abstencao:1}, aprovado:true, categoria:"liberdades" },
-  { id:"voto-impresso", emoji:"🗳️", titulo:"PEC do Voto Impresso — Rejeição", subtitulo:"PEC 135/2019",
-    descricao:"Proposta de Bolsonaro para auditar eleições com voto impresso. REJEITADA: 229 a favor, 218 contra (faltaram votos).",
-    data:"Ago 2021", votacaoId:"2220292-229", resultado:{sim:229,nao:218,abstencao:1}, aprovado:false, categoria:"liberdades" },
-  { id:"drogas-pec", emoji:"🚨", titulo:"PEC Criminalização Drogas", subtitulo:"PEC 45/2023",
-    descricao:"Criminalizou constitucionalmente o porte de drogas para uso pessoal. Aprovado na CCJC antes de ir ao plenário.",
-    data:"Jun 2024", votacaoId:"2428236-50", resultado:{sim:47,nao:17,abstencao:0}, aprovado:true, categoria:"liberdades" },
-];
+// ── Sistema de Importância e Categorias ──────────────────────────────────────
+// Níveis: 4=CRÍTICO(vermelho) 3=ALTO(laranja) 2=MÉDIO(amarelo) 1=ROTINA(verde)
+const IMPORTANCIA = {
+  4: { label:"CRÍTICO",  cor:"#ef4444", bg:"rgba(239,68,68,0.12)",   borda:"rgba(239,68,68,0.4)",   desc:"PECs e reformas estruturais" },
+  3: { label:"ALTO",     cor:"#f97316", bg:"rgba(249,115,22,0.12)",   borda:"rgba(249,115,22,0.4)",  desc:"PLs de impacto nacional" },
+  2: { label:"MÉDIO",    cor:"#eab308", bg:"rgba(234,179,8,0.12)",    borda:"rgba(234,179,8,0.4)",   desc:"Legislação setorial relevante" },
+  1: { label:"ROTINA",   cor:"#22c55e", bg:"rgba(34,197,94,0.12)",    borda:"rgba(34,197,94,0.4)",   desc:"Votações administrativas" },
+};
 
 const CATEGORIAS_VOT = [
-  {id:"todas",label:"Todas"},
-  {id:"economia",label:"💰 Economia"},
-  {id:"direitos",label:"⚖️ Direitos e Social"},
-  {id:"liberdades",label:"🔓 Liberdades e Segurança"},
+  {id:"todas",       label:"Todas",              emoji:""},
+  {id:"economia",    label:"Economia",            emoji:"💰"},
+  {id:"direitos",    label:"Direitos Sociais",    emoji:"⚖️"},
+  {id:"seguranca",   label:"Segurança Pública",   emoji:"🚔"},
+  {id:"democracia",  label:"Democracia e Mídia",  emoji:"🗳️"},
+  {id:"saude",       label:"Saúde",               emoji:"🏥"},
+  {id:"meioambiente",label:"Meio Ambiente",        emoji:"🌿"},
+  {id:"tecnologia",  label:"Tecnologia",           emoji:"🤖"},
+  {id:"costumes",    label:"Costumes e Moral",     emoji:"⛪"},
 ];
+
+// ── Votações Câmara dos Deputados ────────────────────────────────────────────
+// imp: 4=Crítico 3=Alto 2=Médio 1=Rotina
+// votacaoId: usado para buscar votos individuais via API
+const TEMAS_SENSIVEIS = [
+
+  // ══ 2024–2026 ══
+  { id:"ir-5k", emoji:"💵", titulo:"Isenção IR até R$ 5 mil", subtitulo:"PL 1087/2025",
+    descricao:"Isenta do Imposto de Renda trabalhadores com salário de até R$ 5.000, com tributação progressiva até R$ 7.000. Aprovado por quase unanimidade.",
+    data:"Out 2025", ano:2025, votacaoId:"2487436-169", resultado:{sim:493,nao:0,abstencao:1}, aprovado:true,
+    categoria:"economia", imp:4, casa:"camara" },
+
+  { id:"pl-aborto", emoji:"⚕️", titulo:"PL Aborto = Homicídio (PL 1904/2024)", subtitulo:"PL 1904/2024",
+    descricao:"Equiparou a pena do aborto ao homicídio qualificado — até 20 anos de prisão — mesmo em casos de estupro. Aprovado na Câmara em agosto de 2024 de madrugada.",
+    data:"Ago 2024", ano:2024, votacaoId:"2434493-42", resultado:{sim:293,nao:117,abstencao:1}, aprovado:true,
+    categoria:"costumes", imp:4, casa:"camara" },
+
+  { id:"drogas-pec-plen", emoji:"🚨", titulo:"PEC Criminalização Drogas — Plenário", subtitulo:"PEC 45/2023",
+    descricao:"Emenda constitucional que proíbe posse de qualquer droga para uso pessoal — resposta legislativa à decisão do STF de descriminalizar maconha.",
+    data:"Ago 2024", ano:2024, votacaoId:"2428236-50", resultado:{sim:308,nao:104,abstencao:3}, aprovado:true,
+    categoria:"seguranca", imp:4, casa:"camara" },
+
+  { id:"pec-segpub-camara", emoji:"🛡️", titulo:"PEC da Segurança Pública", subtitulo:"PEC 14/2024",
+    descricao:"Incluiu segurança pública entre as responsabilidades da União, criando mecanismos de atuação federal no combate ao crime organizado.",
+    data:"Mai 2024", ano:2024, votacaoId:"2427990-52", resultado:{sim:414,nao:48,abstencao:2}, aprovado:true,
+    categoria:"seguranca", imp:3, casa:"camara" },
+
+  { id:"pl-ia", emoji:"🤖", titulo:"Marco Legal da Inteligência Artificial", subtitulo:"PL 2338/2023",
+    descricao:"Regulamenta o desenvolvimento e uso da IA no Brasil. Baseado no AI Act europeu, estabelece responsabilidades e proibições para sistemas de alto risco.",
+    data:"2025 (em tramitação)", ano:2025, votacaoId:null, resultado:{sim:null,nao:null,abstencao:null}, aprovado:null,
+    categoria:"tecnologia", imp:3, casa:"camara" },
+
+  { id:"pl-fake-news-urgencia", emoji:"📱", titulo:"PL das Fake News — Urgência Aprovada", subtitulo:"PL 2630/2020",
+    descricao:"Aprovação da urgência para o PL que responsabilizaria plataformas digitais. Aprovado por margem estreita (238×192) após intenso lobby das big techs.",
+    data:"Abr 2023", ano:2023, votacaoId:"2256735-8", resultado:{sim:238,nao:192,abstencao:1}, aprovado:true,
+    categoria:"democracia", imp:4, casa:"camara" },
+
+  // ══ Reforma Tributária ══
+  { id:"reforma-trib-1t", emoji:"💰", titulo:"Reforma Tributária — 1º Turno", subtitulo:"PEC 45/2019",
+    descricao:"Substituiu PIS, Cofins, IPI, ICMS e ISS por CBS, IBS e Imposto Seletivo. Maior reforma tributária desde 1988. Aprovado com folga no 1º turno.",
+    data:"Jul 2023", ano:2023, votacaoId:"2196833-373", resultado:{sim:375,nao:113,abstencao:3}, aprovado:true,
+    categoria:"economia", imp:4, casa:"camara" },
+
+  { id:"reforma-trib-2t", emoji:"🏦", titulo:"Reforma Tributária — 2º Turno", subtitulo:"PEC 45/2019",
+    descricao:"Votação final confirmando aprovação. Placar mais disputado que o 1º turno: 56 deputados mudaram de voto. Reforma aprovada definitivamente na Câmara.",
+    data:"Jul 2023", ano:2023, votacaoId:"2196833-395", resultado:{sim:336,nao:132,abstencao:0}, aprovado:true,
+    categoria:"economia", imp:4, casa:"camara" },
+
+  { id:"marco-temporal-camara", emoji:"🌿", titulo:"Marco Temporal Terras Indígenas", subtitulo:"PL 490/2007",
+    descricao:"Limitaria demarcações a ocupações em 05/10/1988. Aprovado na Câmara por 290×142. O STF depois o derrubou por inconstitucionalidade.",
+    data:"Mai 2023", ano:2023, votacaoId:"345311-279", resultado:{sim:290,nao:142,abstencao:1}, aprovado:true,
+    categoria:"meioambiente", imp:4, casa:"camara" },
+
+  { id:"igualdade-salarial", emoji:"👩‍💼", titulo:"Igualdade Salarial Mulheres", subtitulo:"PL 1085/2023",
+    descricao:"Obriga empresas a pagar salários iguais para homens e mulheres na mesma função, com multa de 10x o salário do empregado discriminado.",
+    data:"Mai 2023", ano:2023, votacaoId:"2351179-51", resultado:{sim:325,nao:36,abstencao:3}, aprovado:true,
+    categoria:"direitos", imp:3, casa:"camara" },
+
+  { id:"voto-impresso", emoji:"🗳️", titulo:"PEC do Voto Impresso — Rejeitada", subtitulo:"PEC 135/2019",
+    descricao:"Proposta de Bolsonaro para auditar eleições com voto impresso. REJEITADA por não atingir 308 votos (obteve 229 a favor, 218 contra).",
+    data:"Ago 2021", ano:2021, votacaoId:"2220292-229", resultado:{sim:229,nao:218,abstencao:1}, aprovado:false,
+    categoria:"democracia", imp:4, casa:"camara" },
+
+  // ══ Históricas 5 anos ══
+  { id:"fundeb", emoji:"📚", titulo:"Novo FUNDEB", subtitulo:"PEC 15/2015",
+    descricao:"Tornou permanente o Fundo da Educação Básica e aumentou a participação da União de 10% para 23%. Aprovado com ampla maioria.",
+    data:"Jul 2020", ano:2020, votacaoId:"1198512-250", resultado:{sim:499,nao:7,abstencao:0}, aprovado:true,
+    categoria:"direitos", imp:3, casa:"camara" },
+
+  { id:"previdencia-1t", emoji:"👴", titulo:"Reforma da Previdência — 1º Turno", subtitulo:"PEC 6/2019",
+    descricao:"Mudou regras de aposentadoria: idade mínima 65H/62M, fim da aposentadoria por tempo de contribuição. Afetou mais de 57 milhões de trabalhadores.",
+    data:"Jul 2019", ano:2019, votacaoId:"2192459-636", resultado:{sim:379,nao:131,abstencao:0}, aprovado:true,
+    categoria:"economia", imp:4, casa:"camara" },
+
+  { id:"previdencia-2t", emoji:"📋", titulo:"Reforma da Previdência — 2º Turno", subtitulo:"PEC 6/2019",
+    descricao:"Aprovação definitiva que consolidou as mudanças previdenciárias mais profundas das últimas décadas no Brasil.",
+    data:"Ago 2019", ano:2019, votacaoId:"2192459-786", resultado:{sim:370,nao:124,abstencao:1}, aprovado:true,
+    categoria:"economia", imp:4, casa:"camara" },
+
+  { id:"piso-enfermagem", emoji:"🏥", titulo:"Piso Salarial da Enfermagem", subtitulo:"PL 2564/2020",
+    descricao:"Estabeleceu piso de R$ 4.750 para enfermeiros, R$ 3.325 para técnicos e R$ 2.375 para auxiliares. STF suspendeu parcialmente por impacto fiscal.",
+    data:"Mai 2022", ano:2022, votacaoId:"2309349-146", resultado:{sim:449,nao:12,abstencao:0}, aprovado:true,
+    categoria:"saude", imp:3, casa:"camara" },
+
+  { id:"imposto-exportacao", emoji:"🌾", titulo:"Imposto sobre Exportação de Agronegócio", subtitulo:"PEC 23/2023",
+    descricao:"Proposta de taxação de exportações do agronegócio para financiar fundo de transição climática. Rejeitada pela bancada ruralista.",
+    data:"2023", ano:2023, votacaoId:null, resultado:{sim:null,nao:null,abstencao:null}, aprovado:false,
+    categoria:"meioambiente", imp:2, casa:"camara" },
+
+  { id:"mineracao-indigena", emoji:"⛏️", titulo:"Mineração em Terras Indígenas", subtitulo:"PL 191/2020",
+    descricao:"Regulamentaria atividades de mineração, garimpo e agropecuária em terras indígenas. Aprovado na Câmara em 2021, aguarda Senado.",
+    data:"Fev 2022", ano:2022, votacaoId:"1805714-285", resultado:{sim:321,nao:137,abstencao:3}, aprovado:true,
+    categoria:"meioambiente", imp:3, casa:"camara" },
+];
+
+// ── Votações Senado Federal ───────────────────────────────────────────────────
+const TEMAS_SENADO = [
+  { id:"ref-trib-senado", emoji:"💰", titulo:"Reforma Tributária — Aprovação Final", subtitulo:"PEC 45/2019",
+    descricao:"Após aprovação na Câmara, o Senado aprovou a maior reforma tributária da história brasileira. Substitui 5 tributos por CBS, IBS e Imposto Seletivo.",
+    data:"Nov 2023", ano:2023, sessaoId:"6777", periodo:"20231101/20231130",
+    resultado:{sim:53,nao:24,abstencao:4}, aprovado:true, categoria:"economia", imp:4, casa:"senado" },
+
+  { id:"marco-temporal-senado", emoji:"🌿", titulo:"Marco Temporal — Aprovação no Senado", subtitulo:"PL 2903/2023",
+    descricao:"O Senado aprovou o Marco Temporal por 43×21. O STF depois declarou inconstitucional. Senadores aprovaram mesmo após decisão parcial do STF.",
+    data:"Set 2023", ano:2023, sessaoId:"6756", periodo:"20230901/20230930",
+    resultado:{sim:43,nao:21,abstencao:17}, aprovado:true, categoria:"meioambiente", imp:4, casa:"senado" },
+
+  { id:"arcabouco-fiscal", emoji:"📊", titulo:"Arcabouço Fiscal", subtitulo:"PEC 8/2021",
+    descricao:"Novo marco fiscal que substitui o teto de gastos. Define limites de crescimento de despesas vinculados à arrecadação, com sanções automáticas.",
+    data:"Nov 2023", ano:2023, sessaoId:"6781", periodo:"20231101/20231130",
+    resultado:{sim:52,nao:18,abstencao:11}, aprovado:true, categoria:"economia", imp:4, casa:"senado" },
+
+  { id:"destaque-ref-trib", emoji:"🏦", titulo:"Reforma Tributária — Destaques Rejeitados", subtitulo:"PEC 45/2019",
+    descricao:"Emendas polêmicas ao texto da Reforma Tributária foram rejeitadas pelo Senado, preservando o texto vindo da Câmara.",
+    data:"Nov 2023", ano:2023, sessaoId:"6774", periodo:"20231101/20231130",
+    resultado:{sim:31,nao:41,abstencao:9}, aprovado:false, categoria:"economia", imp:3, casa:"senado" },
+
+  { id:"pec-seg-pub-senado", emoji:"🛡️", titulo:"PEC da Segurança Pública — Senado", subtitulo:"PEC 66/2023",
+    descricao:"Inclui segurança pública como responsabilidade da União. Aprovada em 2 turnos no Senado após passar pela Câmara. Permite ação federal direta.",
+    data:"Ago 2024", ano:2024, sessaoId:"6868", periodo:"20240801/20240831",
+    resultado:{sim:58,nao:14,abstencao:4}, aprovado:true, categoria:"seguranca", imp:4, casa:"senado" },
+
+  { id:"zanin-aprovacao", emoji:"⚖️", titulo:"Aprovação Cristiano Zanin (STF)", subtitulo:"MSF 34/2023",
+    descricao:"Senado aprovou indicação de Zanin — ex-advogado de Lula — ao STF. Aprovação com 58×18 votos, sendo a mais contestada indicação recente.",
+    data:"Jun 2023", ano:2023, sessaoId:"6713", periodo:"20230601/20230630",
+    resultado:{sim:58,nao:18,abstencao:0}, aprovado:true, categoria:"democracia", imp:3, casa:"senado" },
+
+  { id:"dino-aprovacao", emoji:"⚖️", titulo:"Aprovação Flávio Dino (STF)", subtitulo:"MSF 88/2023",
+    descricao:"Senado aprovou Flávio Dino com placar de 47×31 — o mais apertado da história recente do STF. Dino foi ministro da Justiça de Lula antes da indicação.",
+    data:"Dez 2023", ano:2023, sessaoId:"6813", periodo:"20231201/20231231",
+    resultado:{sim:47,nao:31,abstencao:0}, aprovado:true, categoria:"democracia", imp:3, casa:"senado" },
+
+  { id:"galipolo-bcb", emoji:"🏦", titulo:"Aprovação Galípolo (Banco Central)", subtitulo:"MSF 27/2023",
+    descricao:"Gabriel Galípolo aprovado para o Banco Central com 39×12 votos. Indicado de Lula para suceder Campos Neto como presidente do BC.",
+    data:"Jul 2023", ano:2023, sessaoId:"6724", periodo:"20230701/20230731",
+    resultado:{sim:39,nao:12,abstencao:0}, aprovado:true, categoria:"economia", imp:3, casa:"senado" },
+
+  { id:"pec-transicao", emoji:"💸", titulo:"PEC da Transição — Furo do Teto", subtitulo:"PEC 32/2022",
+    descricao:"Permitiu R$ 168 bilhões extras fora do teto de gastos para financiar Bolsa Família e outras promessas de campanha de Lula. Aprovada em dezembro/2022.",
+    data:"Dez 2022", ano:2022, sessaoId:"6619", periodo:"20221201/20221231",
+    resultado:{sim:64,nao:16,abstencao:0}, aprovado:true, categoria:"economia", imp:4, casa:"senado" },
+
+  { id:"pec-combustiveis", emoji:"⛽", titulo:"PEC dos Combustíveis (Kamikaze)", subtitulo:"PEC 15/2022",
+    descricao:"Zerou impostos federais sobre combustíveis e criou auxílio-caminhoneiro e vale-gás. Aprovada às vésperas da eleição de 2022 por Bolsonaro.",
+    data:"Jun 2022", ano:2022, sessaoId:"6534", periodo:"20220601/20220630",
+    resultado:{sim:63,nao:13,abstencao:0}, aprovado:true, categoria:"economia", imp:3, casa:"senado" },
+];
+
+
 
 function TelaVotacoes({ s, tema, setTema, setTela }) {
   const T = s.T; const dark = tema==="dark";
@@ -968,249 +1086,333 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
   const [filtVoto, setFiltVoto] = useState("todos");
   const [filtPartido, setFiltPartido] = useState("Todos");
   const [filtCat, setFiltCat] = useState("todas");
+  const [filtCasa, setFiltCasa] = useState("todas");
+  const [filtImp, setFiltImp] = useState(0); // 0=todas, 1-4=níveis
+
+  // Combina Câmara + Senado
+  const TODOS_TEMAS = [...TEMAS_SENSIVEIS, ...TEMAS_SENADO];
 
   const carregarVotos = async (t) => {
     setTemaSel(t); setVotos([]); setCarregando(true);
     setBusca(""); setFiltVoto("todos"); setFiltPartido("Todos");
     try {
-      const res = await fetch(`${CAMARA_API}/votacoes/${t.votacaoId}/votos`);
-      const data = await res.json();
-      setVotos(data.dados||[]);
-    } catch {}
+      if (!t.votacaoId) { setCarregando(false); return; }
+      if (t.casa === "senado") {
+        const url = `https://legis.senado.leg.br/dadosabertos/plenario/lista/votacao/${t.periodo}.json`;
+        const r = await fetch(url);
+        const d = await r.json();
+        const vs = d?.ListaVotacoes?.Votacoes?.Votacao || [];
+        const vot = vs.find(v => v.CodigoSessaoVotacao === t.sessaoId);
+        const senadores = vot?.Votos?.VotoParlamentar || [];
+        setVotos(senadores.map(v => ({
+          nome: v.NomeParlamentar, partido: v.SiglaPartido, uf: v.SiglaUf,
+          voto: v.Voto, urlFoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(v.NomeParlamentar)}&background=1a1f2e&color=00d4aa&size=60`
+        })));
+      } else {
+        const url = `${CAMARA_API}/votacoes/${t.votacaoId}/votos?itens=600`;
+        const r = await fetch(url);
+        const d = await r.json();
+        setVotos((d.dados || []).map(v => ({
+          nome: v.deputado_?.nome || "", partido: v.deputado_?.siglaPartido || "",
+          uf: v.deputado_?.siglaUf || "", voto: v.tipoVoto,
+          urlFoto: v.deputado_?.urlFoto || ""
+        })));
+      }
+    } catch(e) { console.error(e); }
     setCarregando(false);
   };
 
-  const partidos = temaSel ? ["Todos",...new Set(votos.map(v=>v.deputado_?.siglaPartido).filter(Boolean)).values()].sort() : [];
+  const corVoto = v => {
+    if (!v) return T.textMuted;
+    const vl = v.toUpperCase();
+    if (vl==="SIM"||vl==="S") return "#00d464";
+    if (vl==="NÃO"||vl==="NAO"||vl==="N") return "#ff4d6d";
+    return "#ffd60a";
+  };
+  const emVoto = v => {
+    if (!v) return "⬜";
+    const vl = v.toUpperCase();
+    if (vl==="SIM"||vl==="S") return "✅";
+    if (vl==="NÃO"||vl==="NAO"||vl==="N") return "❌";
+    return "🟡";
+  };
+
+  const temasFiltrados = TODOS_TEMAS.filter(t => {
+    if (filtCasa !== "todas" && t.casa !== filtCasa) return false;
+    if (filtCat !== "todas" && t.categoria !== filtCat) return false;
+    if (filtImp > 0 && t.imp !== filtImp) return false;
+    return true;
+  }).sort((a,b) => b.imp - a.imp || b.ano - a.ano);
 
   const votosFiltrados = votos.filter(v => {
-    const dep = v.deputado_||{};
-    if (busca && !dep.nome?.toLowerCase().includes(busca.toLowerCase()) && !dep.siglaPartido?.toLowerCase().includes(busca.toLowerCase())) return false;
-    if (filtVoto!=="todos" && v.tipoVoto?.toLowerCase()!==filtVoto) return false;
-    if (filtPartido!=="Todos" && dep.siglaPartido!==filtPartido) return false;
+    if (busca) {
+      const q = busca.toLowerCase();
+      if (!v.nome?.toLowerCase().includes(q) && !v.partido?.toLowerCase().includes(q) && !v.uf?.toLowerCase().includes(q)) return false;
+    }
+    if (filtVoto !== "todos") {
+      const vl = (v.voto||"").toUpperCase();
+      if (filtVoto==="sim" && vl!=="SIM" && vl!=="S") return false;
+      if (filtVoto==="nao" && vl!=="NÃO" && vl!=="NAO" && vl!=="N") return false;
+      if (filtVoto==="outro" && (vl==="SIM"||vl==="S"||vl==="NÃO"||vl==="NAO"||vl==="N")) return false;
+    }
+    if (filtPartido !== "Todos" && v.partido !== filtPartido) return false;
     return true;
   });
 
-  const statsPorPartido = votos.reduce((acc,v)=>{
-    const p=v.deputado_?.siglaPartido||"?";
-    if(!acc[p]) acc[p]={sim:0,nao:0,abs:0,total:0};
-    const t=v.tipoVoto?.toLowerCase();
-    if(t==="sim") acc[p].sim++; else if(t==="não") acc[p].nao++; else acc[p].abs++;
-    acc[p].total++; return acc;
-  },{});
-  const partidosOrdenados = Object.entries(statsPorPartido).sort((a,b)=>b[1].total-a[1].total).slice(0,12);
+  const partidos = temaSel ? ["Todos", ...Array.from(new Set(votos.map(v=>v.partido).filter(Boolean))).sort()] : [];
 
-  const corVoto = t => { const v=t?.toLowerCase(); return v==="sim"?"#00d464":v==="não"?"#ff4d6d":"#ffd60a"; };
-  const bgVoto  = t => { const v=t?.toLowerCase(); return v==="sim"?"rgba(0,212,100,0.1)":v==="não"?"rgba(255,77,109,0.1)":"rgba(255,214,10,0.1)"; };
-  const emVoto  = t => { const v=t?.toLowerCase(); return v==="sim"?"✅":v==="não"?"❌":"🟡"; };
+  // ── Detalhe de uma votação ────────────────────────────────────────────────
+  if (temaSel) {
+    const imp = IMPORTANCIA[temaSel.imp] || IMPORTANCIA[2];
+    const tot = (temaSel.resultado.sim||0) + (temaSel.resultado.nao||0) + (temaSel.resultado.abstencao||0);
+    const pS = tot>0 ? Math.round((temaSel.resultado.sim||0)/tot*100) : null;
+    const pN = tot>0 ? Math.round((temaSel.resultado.nao||0)/tot*100) : null;
+    const contSim = votosFiltrados.filter(v=>["SIM","S"].includes((v.voto||"").toUpperCase())).length;
+    const contNao = votosFiltrados.filter(v=>["NÃO","NAO","N"].includes((v.voto||"").toUpperCase())).length;
+
+    return (
+      <div style={s.app}>
+        <div style={s.grid}/>
+        <NavBar telaAtual="votacoes" setTela={(t)=>{if(t==="votacoes")setTemaSel(null);else setTela(t);}} setTema={setTema} tema={tema} s={s}/>
+        <div style={{...s.main,maxWidth:"920px"}}>
+          <BotaoVoltar onClick={()=>setTemaSel(null)} label="← VOLTAR PARA VOTAÇÕES" s={s}/>
+
+          {/* Header tema */}
+          <div style={{background:T.subCardBg,border:`1px solid ${imp.borda}`,borderLeft:`4px solid ${imp.cor}`,borderRadius:"12px",padding:"20px",marginBottom:"18px"}}>
+            <div style={{display:"flex",gap:"12px",alignItems:"flex-start"}}>
+              <span style={{fontSize:"32px",flexShrink:0}}>{temaSel.emoji}</span>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"8px",alignItems:"center"}}>
+                  <span style={{fontSize:"11px",padding:"3px 10px",borderRadius:"4px",background:imp.bg,color:imp.cor,fontWeight:"800",border:`1px solid ${imp.borda}`}}>
+                    ● {imp.label}
+                  </span>
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:T.tagBg,color:T.textMuted,fontWeight:"600"}}>{temaSel.subtitulo}</span>
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:T.tagBg,color:T.textMuted,fontWeight:"600"}}>{temaSel.data}</span>
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:T.tagBg,color:temaSel.casa==="camara"?"#00d4aa":"#a78bfa",fontWeight:"700"}}>
+                    {temaSel.casa==="camara"?"👥 Câmara":"🏛️ Senado"}
+                  </span>
+                </div>
+                <h2 style={{margin:"0 0 8px",fontSize:"17px",fontWeight:"800",color:T.textPrimary}}>{temaSel.titulo}</h2>
+                <p style={{margin:0,fontSize:"12px",color:T.textSecondary,lineHeight:"1.7"}}>{temaSel.descricao}</p>
+              </div>
+            </div>
+
+            {/* Placar */}
+            {temaSel.resultado.sim !== null && (
+              <div style={{marginTop:"16px"}}>
+                <div style={{height:"10px",background:T.divider,borderRadius:"5px",overflow:"hidden",display:"flex"}}>
+                  <div style={{width:`${pS}%`,background:"#00d464",transition:"width 0.6s"}}/>
+                  <div style={{width:`${pN}%`,background:"#ff4d6d",transition:"width 0.6s"}}/>
+                </div>
+                <div style={{display:"flex",gap:"16px",marginTop:"10px",flexWrap:"wrap"}}>
+                  <span style={{color:"#00d464",fontWeight:"800",fontSize:"14px"}}>✅ {temaSel.resultado.sim} SIM ({pS}%)</span>
+                  <span style={{color:"#ff4d6d",fontWeight:"800",fontSize:"14px"}}>❌ {temaSel.resultado.nao} NÃO ({pN}%)</span>
+                  {temaSel.resultado.abstencao > 0 && <span style={{color:"#ffd60a",fontWeight:"700",fontSize:"13px"}}>🟡 {temaSel.resultado.abstencao} abst.</span>}
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"10px",marginLeft:"auto",
+                    background:temaSel.aprovado===true?"rgba(0,212,100,0.15)":"rgba(255,77,109,0.15)",
+                    color:temaSel.aprovado===true?"#00d464":"#ff4d6d",fontWeight:"800"}}>
+                    {temaSel.aprovado===true?"✓ APROVADA":"✗ REJEITADA"}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Votos individuais */}
+          {carregando ? (
+            <div style={{textAlign:"center",padding:"40px",color:T.textMuted}}>⏳ Carregando votos...</div>
+          ) : !temaSel.votacaoId ? (
+            <div style={{textAlign:"center",padding:"40px",color:T.textMuted,background:T.subCardBg,borderRadius:"12px"}}>
+              <div style={{fontSize:"32px",marginBottom:"12px"}}>📋</div>
+              <div style={{fontWeight:"700",color:T.textSecondary,marginBottom:"6px"}}>Votos individuais não disponíveis</div>
+              <div style={{fontSize:"12px"}}>Esta votação ainda está em tramitação ou os dados não estão na API pública.</div>
+            </div>
+          ) : votos.length === 0 ? (
+            <div style={{textAlign:"center",padding:"40px",color:T.textMuted}}>Nenhum voto carregado.</div>
+          ) : (<>
+            {/* Filtros */}
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",alignItems:"center"}}>
+              <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔍 Buscar nome/partido/UF..."
+                style={{flex:1,minWidth:"160px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,color:T.textPrimary,padding:"7px 12px",borderRadius:"6px",fontSize:"11px",fontFamily:"inherit"}}/>
+              {["todos","sim","nao","outro"].map(f=>(
+                <button key={f} onClick={()=>setFiltVoto(f)} style={{padding:"6px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+                  background:filtVoto===f?f==="sim"?"rgba(0,212,100,0.15)":f==="nao"?"rgba(255,77,109,0.15)":T.accentDim:T.tagBg,
+                  color:filtVoto===f?f==="sim"?"#00d464":f==="nao"?"#ff4d6d":"#00d4aa":T.textMuted,
+                  border:`1px solid ${filtVoto===f?f==="sim"?"#00d46444":f==="nao"?"#ff4d6d44":"#00d4aa44":T.cardBorder}`}}>
+                  {f==="todos"?"Todos":f==="sim"?"✅ SIM":f==="nao"?"❌ NÃO":"🟡 Outros"}
+                </button>
+              ))}
+              <select value={filtPartido} onChange={e=>setFiltPartido(e.target.value)}
+                style={{background:T.inputBg,border:`1px solid ${T.inputBorder}`,color:T.textPrimary,padding:"6px 10px",borderRadius:"6px",fontSize:"11px",fontFamily:"inherit",cursor:"pointer"}}>
+                {partidos.map(p=><option key={p}>{p}</option>)}
+              </select>
+            </div>
+            <div style={{fontSize:"11px",color:T.textMuted,marginBottom:"10px"}}>
+              {votosFiltrados.length} parlamentares · ✅ {contSim} SIM · ❌ {contNao} NÃO
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:"6px"}}>
+              {votosFiltrados.map((v,i)=>{
+                const cor = corVoto(v.voto); const em = emVoto(v.voto);
+                return (
+                  <div key={i} style={{background:T.cardBg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"10px 12px",display:"flex",gap:"10px",alignItems:"center"}}>
+                    <img src={v.urlFoto} alt="" style={{width:"36px",height:"36px",borderRadius:"50%",objectFit:"cover",border:`2px solid ${cor}44`,flexShrink:0}} onError={e=>e.target.style.display="none"}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:"11px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v.nome}</div>
+                      <div style={{fontSize:"9px",color:T.textMuted}}>{v.partido} · {v.uf}</div>
+                    </div>
+                    <div style={{textAlign:"center",flexShrink:0}}>
+                      <div style={{fontSize:"16px"}}>{em}</div>
+                      <div style={{fontSize:"8px",fontWeight:"800",color:cor}}>{v.voto||"—"}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>)}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Lista de temas ──────────────────────────────────────────────────────────
+  const anosDisponiveis = [...new Set(TODOS_TEMAS.map(t=>t.ano))].sort((a,b)=>b-a);
 
   return (
     <div style={s.app}>
       <div style={s.grid}/>
-      <NavBar telaAtual="votacoes" setTela={(t)=>{if(t==="votacoes")setTemaSel&&setTemaSel(null);setTela(t);}} setTema={setTema} tema={tema} s={s}/>
+      <NavBar telaAtual="votacoes" setTela={setTela} setTema={setTema} tema={tema} s={s}/>
+      <div style={{...s.main,maxWidth:"1000px"}}>
 
-      <div style={{...s.main,maxWidth:"900px"}}>
-        {!temaSel ? (<>
-          <div style={{marginBottom:"24px"}}>
-            <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>CÂMARA DOS DEPUTADOS · VOTAÇÕES NOMINAIS</div>
-            <h1 style={{margin:0,fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>Como votaram em temas sensíveis</h1>
-            <p style={{margin:"8px 0 0",fontSize:"13px",color:T.textSecondary,lineHeight:"1.6"}}>Selecione um tema para ver o voto de cada deputado. Dados oficiais da API da Câmara.</p>
-          </div>
-          <div style={{display:"flex",gap:"6px",marginBottom:"20px",flexWrap:"wrap"}}>
-            {CATEGORIAS_VOT.map(cat=>(
-              <button key={cat.id} onClick={()=>setFiltCat(cat.id)} style={{padding:"5px 14px",borderRadius:"20px",border:`1px solid ${filtCat===cat.id?"#00d4aa":T.inputBorder}`,background:filtCat===cat.id?"rgba(0,212,170,0.15)":T.tagBg,color:filtCat===cat.id?"#00d4aa":T.textSecondary,fontSize:"11px",fontFamily:"inherit",fontWeight:"700",cursor:"pointer"}}>{cat.label}</button>
-            ))}
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
-            {TEMAS_SENSIVEIS.filter(t=>filtCat==="todas"||t.categoria===filtCat).map(t=>{
-              const tot=t.resultado.sim+t.resultado.nao+t.resultado.abstencao;
-              const pS=tot>0?Math.round(t.resultado.sim/tot*100):0;
-              const pN=tot>0?Math.round(t.resultado.nao/tot*100):0;
-              return (
-                <div key={t.id} onClick={()=>carregarVotos(t)} style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"12px",padding:"20px",cursor:"pointer"}}>
-                  <div style={{display:"flex",gap:"16px",alignItems:"flex-start"}}>
-                    <div style={{fontSize:"28px",flexShrink:0}}>{t.emoji}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"4px",flexWrap:"wrap"}}>
-                        <span style={{fontSize:"15px",fontWeight:"800",color:T.textPrimary}}>{t.titulo}</span>
-                        <span style={{fontSize:"10px",color:T.textMuted,background:T.tagBg,padding:"2px 8px",borderRadius:"10px",fontWeight:"600"}}>{t.subtitulo}</span>
-                        <span style={{fontSize:"10px",color:T.textMuted}}>{t.data}</span>
-                      </div>
-                      <p style={{margin:"0 0 14px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.6"}}>{t.descricao}</p>
-                      <div style={{display:"flex",height:"8px",borderRadius:"4px",overflow:"hidden",marginBottom:"8px",gap:"2px"}}>
-                        <div style={{width:`${pS}%`,background:"#00d464"}}/>
-                        <div style={{width:`${pN}%`,background:"#ff4d6d"}}/>
-                        {t.resultado.abstencao>0 && <div style={{flex:1,background:"#ffd60a"}}/>}
-                      </div>
-                      <div style={{display:"flex",gap:"16px",fontSize:"11px",flexWrap:"wrap"}}>
-                        <span style={{color:"#00d464",fontWeight:"700"}}>✅ {t.resultado.sim} SIM ({pS}%)</span>
-                        <span style={{color:"#ff4d6d",fontWeight:"700"}}>❌ {t.resultado.nao} NÃO ({pN}%)</span>
-                        {t.resultado.abstencao>0&&<span style={{color:"#ffd60a",fontWeight:"700"}}>🟡 {t.resultado.abstencao}</span>}
-                        <span style={{color:T.textMuted,marginLeft:"auto"}}>clique para ver cada deputado →</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{marginTop:"24px",padding:"16px",background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"10px",fontSize:"11px",color:T.textMuted,lineHeight:"1.7"}}>
-            <strong style={{color:T.textSecondary}}>ℹ️ Sobre:</strong> Votos nominais extraídos da API oficial da Câmara. Estamos expandindo o banco com mais temas como anistia, porte de armas, meio ambiente e outros.
-          </div>
-        </>) : (<>
-          {/* Breadcrumb */}
-          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
-            <span onClick={()=>setTemaSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>Votações</span>
-            <span style={{color:T.textMuted}}>›</span>
-            <span style={{color:T.textSecondary,fontWeight:"500"}}>{temaSel.titulo}</span>
-          </div>
+        {/* Header */}
+        <div style={{marginBottom:"24px"}}>
+          <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>CÂMARA · SENADO · VOTAÇÕES NOMINAIS</div>
+          <h1 style={{margin:"0 0 6px",fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>Votações por Importância</h1>
+          <p style={{margin:0,fontSize:"13px",color:T.textSecondary,lineHeight:"1.6"}}>
+            {TODOS_TEMAS.length} votações dos últimos 5 anos classificadas por impacto. Clique para ver o voto de cada parlamentar.
+          </p>
+        </div>
 
-          {/* Header tema */}
-          <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"20px",marginBottom:"20px"}}>
-            <div style={{display:"flex",gap:"14px",alignItems:"flex-start"}}>
-              <span style={{fontSize:"32px"}}>{temaSel.emoji}</span>
-              <div style={{flex:1}}>
-                <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap",marginBottom:"6px"}}>
-                  <h2 style={{margin:0,fontSize:"18px",fontWeight:"800",color:T.textPrimary}}>{temaSel.titulo}</h2>
-                  <span style={{fontSize:"10px",color:T.textMuted,background:T.tagBg,padding:"2px 8px",borderRadius:"10px",fontWeight:"600"}}>{temaSel.subtitulo} · {temaSel.data}</span>
-                </div>
-                <p style={{margin:"0 0 14px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.6"}}>{temaSel.descricao}</p>
-                {votos.length>0&&(()=>{
-                  const sim=votos.filter(v=>v.tipoVoto?.toLowerCase()==="sim").length;
-                  const nao=votos.filter(v=>v.tipoVoto?.toLowerCase()==="não").length;
-                  const abs=votos.length-sim-nao; const tot=votos.length;
-                  return (<>
-                    <div style={{display:"flex",height:"12px",borderRadius:"6px",overflow:"hidden",marginBottom:"10px",gap:"2px"}}>
-                      <div style={{width:`${(sim/tot)*100}%`,background:"#00d464"}}/>
-                      <div style={{width:`${(nao/tot)*100}%`,background:"#ff4d6d"}}/>
-                      {abs>0&&<div style={{flex:1,background:"#ffd60a"}}/>}
-                    </div>
-                    <div style={{display:"flex",gap:"20px",fontSize:"13px",flexWrap:"wrap"}}>
-                      <span style={{color:"#00d464",fontWeight:"800"}}>✅ {sim} SIM ({Math.round(sim/tot*100)}%)</span>
-                      <span style={{color:"#ff4d6d",fontWeight:"800"}}>❌ {nao} NÃO ({Math.round(nao/tot*100)}%)</span>
-                      {abs>0&&<span style={{color:"#ffd60a",fontWeight:"800"}}>🟡 {abs} ABSTENÇÃO</span>}
-                      <span style={{color:T.textMuted}}>{tot} deputados</span>
-                    </div>
-                  </>);
-                })()}
+        {/* Legenda de importância */}
+        <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"16px"}}>
+          {[0,4,3,2,1].map(imp=>{
+            const info = imp===0 ? {label:"Todas",cor:T.textSecondary,bg:T.tagBg,borda:T.cardBorder} : IMPORTANCIA[imp];
+            return (
+              <button key={imp} onClick={()=>setFiltImp(imp)} style={{
+                display:"flex",alignItems:"center",gap:"6px",
+                padding:"6px 14px",borderRadius:"6px",cursor:"pointer",
+                fontFamily:"inherit",fontSize:"10px",fontWeight:"800",
+                background:filtImp===imp?info.bg:T.tagBg,
+                color:filtImp===imp?info.cor:T.textMuted,
+                border:`1px solid ${filtImp===imp?info.borda:T.cardBorder}`,
+              }}>
+                {imp>0 && <span style={{width:"8px",height:"8px",borderRadius:"50%",background:info.cor,display:"inline-block",flexShrink:0}}/>}
+                {imp===0?"Todas importâncias":`${info.label}${imp===4?" (PECs/Reformas)":imp===3?" (PLs nacionais)":imp===2?" (Setorial)":""}`}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filtros */}
+        <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"20px"}}>
+          {/* Casa */}
+          {[{id:"todas",l:"Todas as casas"},{id:"camara",l:"👥 Câmara"},{id:"senado",l:"🏛️ Senado"}].map(c=>(
+            <button key={c.id} onClick={()=>setFiltCasa(c.id)} style={{padding:"5px 12px",borderRadius:"20px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+              background:filtCasa===c.id?"rgba(0,212,170,0.15)":T.tagBg,color:filtCasa===c.id?"#00d4aa":T.textMuted,
+              border:`1px solid ${filtCasa===c.id?"#00d4aa44":T.inputBorder}`}}>
+              {c.l}
+            </button>
+          ))}
+          <div style={{width:"1px",background:T.divider,margin:"0 4px",alignSelf:"stretch"}}/>
+          {/* Categoria */}
+          {CATEGORIAS_VOT.map(cat=>(
+            <button key={cat.id} onClick={()=>setFiltCat(cat.id)} style={{padding:"5px 12px",borderRadius:"20px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+              background:filtCat===cat.id?"rgba(0,212,170,0.15)":T.tagBg,color:filtCat===cat.id?"#00d4aa":T.textMuted,
+              border:`1px solid ${filtCat===cat.id?"#00d4aa44":T.inputBorder}`}}>
+              {cat.emoji} {cat.id==="todas"?"Todas categorias":cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Contador */}
+        <div style={{fontSize:"11px",color:T.textMuted,marginBottom:"14px"}}>
+          {temasFiltrados.length} votações · {temasFiltrados.filter(t=>t.casa==="camara").length} Câmara · {temasFiltrados.filter(t=>t.casa==="senado").length} Senado
+        </div>
+
+        {/* Grid de temas agrupados por importância */}
+        {[4,3,2,1].map(nImp => {
+          const grupo = temasFiltrados.filter(t=>t.imp===nImp);
+          if (!grupo.length) return null;
+          const info = IMPORTANCIA[nImp];
+          return (
+            <div key={nImp} style={{marginBottom:"28px"}}>
+              {/* Header grupo */}
+              <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"12px"}}>
+                <div style={{width:"10px",height:"10px",borderRadius:"50%",background:info.cor,flexShrink:0,boxShadow:`0 0 8px ${info.cor}88`}}/>
+                <span style={{fontSize:"11px",fontWeight:"800",color:info.cor,letterSpacing:"0.1em"}}>{info.label}</span>
+                <span style={{fontSize:"10px",color:T.textMuted}}>— {info.desc}</span>
+                <span style={{fontSize:"10px",color:T.textMuted,marginLeft:"auto"}}>{grupo.length} votação{grupo.length>1?"s":""}</span>
               </div>
-            </div>
-          </div>
 
-          {/* Por partido */}
-          {!carregando&&votos.length>0&&(
-            <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"18px",marginBottom:"20px"}}>
-              <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"14px"}}>📊 RESULTADO POR PARTIDO</div>
               <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
-                {partidosOrdenados.map(([partido,st])=>{
-                  const pS=Math.round(st.sim/st.total*100);
-                  const pN=Math.round(st.nao/st.total*100);
+                {grupo.map(t => {
+                  const tot = (t.resultado.sim||0)+(t.resultado.nao||0)+(t.resultado.abstencao||0);
+                  const pS = tot>0 ? Math.round((t.resultado.sim||0)/tot*100) : null;
+                  const pN = tot>0 ? Math.round((t.resultado.nao||0)/tot*100) : null;
+                  const cat = CATEGORIAS_VOT.find(c=>c.id===t.categoria);
                   return (
-                    <div key={partido} style={{display:"flex",alignItems:"center",gap:"10px"}}>
-                      <div style={{width:"80px",fontSize:"11px",fontWeight:"700",color:T.textPrimary,flexShrink:0}}>{partido}</div>
-                      <div style={{flex:1,height:"18px",borderRadius:"4px",overflow:"hidden",display:"flex",gap:"1px",background:T.divider}}>
-                        <div style={{width:`${pS}%`,background:"#00d464",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                          {pS>12&&<span style={{fontSize:"9px",fontWeight:"800",color:"#fff"}}>{pS}%</span>}
+                    <div key={t.id} onClick={()=>carregarVotos(t)}
+                      style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderLeft:`3px solid ${info.cor}`,
+                        borderRadius:"10px",padding:"16px",cursor:"pointer",transition:"all 0.15s"}}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor=info.cor;e.currentTarget.style.background=info.bg;}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor=T.cardBorder;e.currentTarget.style.borderLeftColor=info.cor;e.currentTarget.style.background=T.cardBg;}}>
+                      <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
+                        <span style={{fontSize:"24px",flexShrink:0}}>{t.emoji}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"5px",alignItems:"center"}}>
+                            <span style={{fontSize:"13px",fontWeight:"800",color:T.textPrimary}}>{t.titulo}</span>
+                          </div>
+                          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",alignItems:"center",marginBottom:"8px"}}>
+                            <span style={{fontSize:"9px",padding:"2px 8px",borderRadius:"3px",background:T.tagBg,color:T.textMuted,fontWeight:"600"}}>{t.subtitulo}</span>
+                            <span style={{fontSize:"9px",padding:"2px 8px",borderRadius:"3px",background:T.tagBg,color:T.textMuted,fontWeight:"600"}}>{t.data}</span>
+                            {cat && <span style={{fontSize:"9px",padding:"2px 8px",borderRadius:"3px",background:T.tagBg,color:T.textMuted,fontWeight:"600"}}>{cat.emoji} {cat.label}</span>}
+                            <span style={{fontSize:"9px",padding:"2px 8px",borderRadius:"3px",background:t.casa==="camara"?"rgba(0,212,170,0.1)":"rgba(167,139,250,0.1)",color:t.casa==="camara"?"#00d4aa":"#a78bfa",fontWeight:"700"}}>
+                              {t.casa==="camara"?"👥 Câmara":"🏛️ Senado"}
+                            </span>
+                          </div>
+                          {/* Mini barra placar */}
+                          {pS !== null ? (
+                            <div>
+                              <div style={{height:"5px",background:T.divider,borderRadius:"3px",overflow:"hidden",display:"flex",marginBottom:"4px"}}>
+                                <div style={{width:`${pS}%`,background:"#00d464"}}/>
+                                <div style={{width:`${pN}%`,background:"#ff4d6d"}}/>
+                              </div>
+                              <div style={{display:"flex",gap:"10px",fontSize:"10px"}}>
+                                <span style={{color:"#00d464",fontWeight:"700"}}>✅ {t.resultado.sim} ({pS}%)</span>
+                                <span style={{color:"#ff4d6d",fontWeight:"700"}}>❌ {t.resultado.nao} ({pN}%)</span>
+                                {t.aprovado!==null && <span style={{marginLeft:"auto",fontWeight:"800",color:t.aprovado?"#00d464":"#ff4d6d"}}>{t.aprovado?"✓ APROVADA":"✗ REJEITADA"}</span>}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{fontSize:"10px",color:T.textMuted,fontStyle:"italic"}}>
+                              {t.aprovado===null?"📋 Em tramitação":"Placar não disponível via API"}
+                            </div>
+                          )}
                         </div>
-                        <div style={{width:`${pN}%`,background:"#ff4d6d",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                          {pN>12&&<span style={{fontSize:"9px",fontWeight:"800",color:"#fff"}}>{pN}%</span>}
-                        </div>
-                        <div style={{flex:1,background:"#ffd60a33"}}/>
-                      </div>
-                      <div style={{fontSize:"10px",color:T.textMuted,flexShrink:0,textAlign:"right",minWidth:"100px"}}>
-                        {st.sim}✅ {st.nao}❌{st.abs>0?" "+st.abs+"🟡":""} <span style={{color:T.textLabel}}>({st.total})</span>
+                        <span style={{color:info.cor,fontSize:"18px",flexShrink:0}}>›</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
-
-          {/* Filtros */}
-          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"8px",padding:"12px 14px",alignItems:"center"}}>
-            <div style={{display:"flex",alignItems:"center",gap:"7px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",flex:"1",minWidth:"160px"}}>
-              <IconSearch/><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar deputado ou partido..."
-                style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",width:"100%"}}/>
-            </div>
-            {["todos","sim","não","abstencao"].map(vt=>(
-              <button key={vt} onClick={()=>setFiltVoto(vt)} style={{
-                padding:"5px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
-                background:filtVoto===vt?(vt==="sim"?"rgba(0,212,100,0.2)":vt==="não"?"rgba(255,77,109,0.2)":vt==="abstencao"?"rgba(255,214,10,0.2)":T.accentDim):T.tagBg,
-                color:filtVoto===vt?(vt==="sim"?"#00d464":vt==="não"?"#ff4d6d":vt==="abstencao"?"#ffd60a":"#00d4aa"):T.textSecondary,
-                border:`1px solid ${filtVoto===vt?(vt==="sim"?"#00d46444":vt==="não"?"#ff4d6d44":vt==="abstencao"?"#ffd60a44":"#00d4aa44"):T.inputBorder}`,
-              }}>{vt==="todos"?"Todos":vt==="sim"?"✅ SIM":vt==="não"?"❌ NÃO":"🟡 ABSTENÇÃO"}</button>
-            ))}
-            <select value={filtPartido} onChange={e=>setFiltPartido(e.target.value)}
-              style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",padding:"6px 10px",cursor:"pointer",outline:"none"}}>
-              {partidos.map(p=><option key={p} value={p} style={{background:T.selectBg}}>{p}</option>)}
-            </select>
-            <span style={{fontSize:"10px",color:T.textMuted}}>{votosFiltrados.length} deputados</span>
-          </div>
-
-          {carregando&&<div style={{textAlign:"center",padding:"60px",color:T.textSecondary,fontSize:"13px"}}><div style={{fontSize:"28px",marginBottom:"12px"}}>⏳</div>Carregando votos...</div>}
-
-          {/* Lista votos */}
-          {!carregando&&(
-            <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
-              {votosFiltrados.map((v,i)=>{
-                const dep=v.deputado_||{};
-                const cor=corVoto(v.tipoVoto); const bg=bgVoto(v.tipoVoto);
-                return (
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:"12px",background:bg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"10px 14px"}}>
-                    <span style={{fontSize:"18px",flexShrink:0}}>{emVoto(v.tipoVoto)}</span>
-                    <img src={dep.urlFoto} alt="" style={{width:"32px",height:"32px",borderRadius:"50%",objectFit:"cover",border:`2px solid ${cor}`,flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{dep.nome}</div>
-                      <div style={{fontSize:"10px",color:T.textSecondary,marginTop:"2px"}}>{dep.siglaPartido} · {dep.siglaUf}</div>
-                    </div>
-                    <span style={{fontSize:"11px",fontWeight:"800",color:cor,flexShrink:0,padding:"3px 10px",borderRadius:"4px",background:`${cor}22`,border:`1px solid ${cor}44`}}>
-                      {v.tipoVoto?.toUpperCase()}
-                    </span>
-                  </div>
-                );
-              })}
-              {votosFiltrados.length===0&&<div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"13px",border:`1px dashed ${T.divider}`,borderRadius:"12px"}}>Nenhum voto encontrado com esses filtros</div>}
-            </div>
-          )}
-        </>)}
+          );
+        })}
       </div>
     </div>
   );
 }
 
 
-// ── Constantes Senado ──────────────────────────────────────────────────────────
-const SENADO_API = "https://legis.senado.leg.br/dadosabertos";
-
-const TEMAS_SENADO = [
-  { id:"reform-trib-sf", emoji:"💰", titulo:"Reforma Tributária", subtitulo:"PEC 45/2019 no Senado",
-    descricao:"Aprovação no Senado da maior reforma tributária desde 1988. 53 votos a favor, 24 contra.",
-    data:"Nov 2023", sessaoId:"6777", periodo:"20231101/20231130",
-    resultado:{sim:53,nao:24,abstencao:4}, aprovado:true, categoria:"economia" },
-  { id:"marco-temporal-sf", emoji:"🌿", titulo:"Marco Temporal Terras Indígenas", subtitulo:"PL 2903/2023 no Senado",
-    descricao:"Aprovação no Senado do Marco Temporal. 43 a favor, 21 contra. STF derrubou parcialmente depois.",
-    data:"Set 2023", sessaoId:"6756", periodo:"20230901/20231031",
-    resultado:{sim:43,nao:21,abstencao:17}, aprovado:true, categoria:"direitos" },
-  { id:"arcabouco-sf", emoji:"📊", titulo:"Arcabouço Fiscal", subtitulo:"PEC 8/2021 no Senado",
-    descricao:"Novo marco fiscal substituindo o teto de gastos. Aprovado com 52 votos a favor.",
-    data:"Nov 2023", sessaoId:"6781", periodo:"20231101/20231130",
-    resultado:{sim:52,nao:18,abstencao:11}, aprovado:true, categoria:"economia" },
-  { id:"pec45-sf-destaques", emoji:"🏦", titulo:"Reforma Tributária — Destaques", subtitulo:"PEC 45/2019 emendas",
-    descricao:"Votação de emenda polêmica à Reforma Tributária que foi rejeitada pelo Senado.",
-    data:"Nov 2023", sessaoId:"6774", periodo:"20231101/20231130",
-    resultado:{sim:31,nao:41,abstencao:9}, aprovado:false, categoria:"economia" },
-  { id:"pec-seguranca-sf", emoji:"🚔", titulo:"PEC da Segurança Pública", subtitulo:"PEC 66/2023 no Senado",
-    descricao:"Proposta que alterou a Constituição para reforçar o papel da segurança pública. 2 turnos.",
-    data:"Ago 2024", sessaoId:"6868", periodo:"20240801/20240901",
-    resultado:{sim:0,nao:0,abstencao:0}, aprovado:true, categoria:"direitos" },
-  { id:"plp-regulacao-sf", emoji:"🏛️", titulo:"Regulação das Plataformas Digitais", subtitulo:"PL 2.630/2023",
-    descricao:"Votação sobre urgência do Marco das Plataformas no Senado. Resultado dividido.",
-    data:"Out 2023", sessaoId:"6761", periodo:"20230901/20231031",
-    resultado:{sim:24,nao:46,abstencao:11}, aprovado:false, categoria:"liberdades" },
-];
-
-
-// ── Tela Senado ───────────────────────────────────────────────────────────────
 function TelaSenado({ s, tema, setTema, setTela }) {
   const T = s.T; const dark = tema === "dark";
   const [senadores, setSenadores] = useState([]);
