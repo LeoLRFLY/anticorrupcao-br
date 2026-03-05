@@ -1349,6 +1349,420 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   );
 }
 
+
+// ── Tela STF / Judiciário ─────────────────────────────────────────────────────
+const MINISTROS_STF = [
+  { id:"moraes",  nome:"Alexandre de Moraes",    cargo:"Presidente",         indicadoPor:"Temer",     partido:"PSDB",  desde:2017, aposentadoria:2043,
+    descricao:"Ex-Ministro da Justiça de Temer. Preside o TSE e o STF. Relator dos casos do 8 de janeiro e das investigações de golpe de Estado.",
+    decisoesDestaque:["Decretou prisão de Bolsonaro (2025)","Conduziu julgamento do 8 de Janeiro","Bloqueou X/Twitter no Brasil","Relatou ADI sobre criptomoedas"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:30, progressista:70}, cor:"#00d4aa" },
+  { id:"barroso", nome:"Luís Roberto Barroso",   cargo:"Ministro",           indicadoPor:"Dilma",     partido:"PSDB",  desde:2013, aposentadoria:2063,
+    descricao:"Constitucionalista renomado. Relatou descriminalização do porte de maconha para uso pessoal e a ADPF das favelas.",
+    decisoesDestaque:["Descriminalização porte de maconha (maioria)","ADPF das Favelas (operações policiais)","Defensor ativo da democracia","Votou contra Marco Temporal"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:25, progressista:75}, cor:"#a78bfa" },
+  { id:"fachin",  nome:"Edson Fachin",            cargo:"Vice-Presidente",    indicadoPor:"Dilma",     partido:"PT",    desde:2015, aposentadoria:2065,
+    descricao:"Ex-professor da UFPR. Relator da Lava Jato no STF. Anulou condenações de Lula por incompetência do juízo de Curitiba.",
+    decisoesDestaque:["Anulou condenações de Lula no STF","Relator da Operação Lava Jato no STF","Votou pela descriminalização da maconha","Votos em defesa do sistema eleitoral"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:20, progressista:80}, cor:"#fb923c" },
+  { id:"zanin",   nome:"Cristiano Zanin",         cargo:"Ministro",           indicadoPor:"Lula",      partido:"PT",    desde:2023, aposentadoria:2053,
+    descricao:"Foi advogado de defesa do próprio Lula durante a Lava Jato. Nomeação polêmica por conflito de interesses.",
+    decisoesDestaque:["Votou pela descriminalização da maconha","Posição ainda em formação (ingresso em 2023)","Aprovado pelo Senado: 58 a 18","Primeiro ministro indicado por ex-cliente"],
+    aprovacaoSenado:true, simSenado:58, naoSenado:18,
+    perfil:{conservador:35, progressista:65}, cor:"#00d464" },
+  { id:"dino",    nome:"Flávio Dino",             cargo:"Ministro",           indicadoPor:"Lula",      partido:"PSB",   desde:2023, aposentadoria:2060,
+    descricao:"Ex-governador do Maranhão e ex-ministro da Justiça. Aprovado pelo Senado com placar apertado de 47 a 31.",
+    decisoesDestaque:["Aprovado com placar apertado: 47 a 31","Bloqueou emendas parlamentares (Pix)","Ex-governador e ex-ministro da Justiça","Posição em formação no STF"],
+    aprovacaoSenado:true, simSenado:47, naoSenado:31,
+    perfil:{conservador:30, progressista:70}, cor:"#ffd60a" },
+  { id:"fux",     nome:"Luiz Fux",                cargo:"Ministro",           indicadoPor:"Lula",      partido:"PT",    desde:2011, aposentadoria:2028,
+    descricao:"Ex-presidente do STF (2020-2022). Processualista. Posição moderada, votou de forma variada nos temas polêmicos.",
+    decisoesDestaque:["Presidiu o STF 2020-2022","Posição dividida na maconha","Decisões no Direito Processual","Contra descriminalização do aborto"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:55, progressista:45}, cor:"#94a3b8" },
+  { id:"toffoli", nome:"Dias Toffoli",            cargo:"Ministro",           indicadoPor:"Lula",      partido:"PT",    desde:2009, aposentadoria:2035,
+    descricao:"Ex-advogado do PT. Polêmico: foi presidente do STF e do TSE. Decisões controversas sobre compartilhamento de dados e inquéritos.",
+    decisoesDestaque:["Suspendeu investigação da Coaf sobre Bolsonaro","Votou contra descriminalização da maconha","Ex-presidente do STF (2018-2020)","Decisões monocráticas polêmicas"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:60, progressista:40}, cor:"#f97316" },
+  { id:"gilmar",  nome:"Gilmar Mendes",           cargo:"Ministro (Decano)",  indicadoPor:"FHC",       partido:"PSDB",  desde:2002, aposentadoria:2030,
+    descricao:"Decano do STF. Indicado por FHC. Jurista prolífico mas com várias decisões polêmicas envolvendo habeas corpus a investigados.",
+    decisoesDestaque:["Concedeu habeas corpus a investigados da Lava Jato","Votou contra descriminalização da maconha","Jurista mais antigo do STF","Decisões polêmicas em casos criminais"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:65, progressista:35}, cor:"#64748b" },
+  { id:"carmen",  nome:"Cármen Lúcia",            cargo:"Ministra",           indicadoPor:"Lula",      partido:"PT",    desde:2006, aposentadoria:2026,
+    descricao:"Ex-presidente do STF e TSE. Conhecida por posições firmes em defesa da democracia. Se aposenta em 2026.",
+    decisoesDestaque:["Foi presidente do STF (2016-2018)","Posições firmes contra corrupção","Votou pela descriminalização da maconha","Defesa da democracia e direitos fundamentais"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:35, progressista:65}, cor:"#e879f9" },
+  { id:"andre",   nome:"André Mendonça",          cargo:"Ministro",           indicadoPor:"Bolsonaro", partido:"PSL",   desde:2021, aposentadoria:2052,
+    descricao:"Ex-AGU e ex-Ministro da Justiça de Bolsonaro. Se declarou 'terrivelmente evangélico'. Posições conservadoras nas pautas de costumes.",
+    decisoesDestaque:["Votou contra descriminalização da maconha","Posição conservadora em costumes","Ex-ministro da Justiça de Bolsonaro","Indicado como 'terrivelmente evangélico'"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:85, progressista:15}, cor:"#ef4444" },
+  { id:"kassio",  nome:"Kassio Nunes Marques",    cargo:"Ministro",           indicadoPor:"Bolsonaro", partido:"PSL",   desde:2020, aposentadoria:2058,
+    descricao:"Indicado por Bolsonaro como primeiro ministro da composição. Ex-presidente do TRF-1. Posições conservadoras.",
+    decisoesDestaque:["Votou contra descriminalização da maconha","Posição conservadora na maioria dos temas","Primeiro indicado de Bolsonaro ao STF","Decisões alinhadas com pauta conservadora"],
+    aprovacaoSenado:null, simSenado:null, naoSenado:null,
+    perfil:{conservador:80, progressista:20}, cor:"#dc2626" },
+];
+
+const CASOS_STF = [
+  { id:"maconha", emoji:"🌿", titulo:"Descriminalização da Maconha", processo:"RE 635.659",
+    descricao:"STF decidiu que portar maconha para uso pessoal não é crime. Placar final de 6 a 5.",
+    data:"Jun 2024", resultado:"Aprovado (6x5)",
+    votos:{
+      moraes:"Sim", barroso:"Sim", fachin:"Sim", zanin:"Sim", dino:"Sim", fux:"Não",
+      toffoli:"Não", gilmar:"Não", carmen:"Sim", andre:"Não", kassio:"Não",
+    }, aprovado:true },
+  { id:"8jan", emoji:"🏛️", titulo:"Julgamento do 8 de Janeiro", processo:"AP 1044 e outros",
+    descricao:"Julgamento dos envolvidos nos ataques às sedes dos Três Poderes em 8 de janeiro de 2023.",
+    data:"2023/2024", resultado:"Condenações aprovadas",
+    votos:{
+      moraes:"Relator", barroso:"Sim", fachin:"Sim", zanin:"Sim", dino:"Sim", fux:"Sim",
+      toffoli:"Não (parcial)", gilmar:"Não (parcial)", carmen:"Sim", andre:"Não", kassio:"Não",
+    }, aprovado:true },
+  { id:"marco-temporal", emoji:"🌱", titulo:"Marco Temporal — Inconstitucional", processo:"RE 1.017.365",
+    descricao:"STF declarou inconstitucional o marco temporal para demarcação de terras indígenas aprovado pelo Congresso.",
+    data:"Set 2023", resultado:"Inconstitucional (9x2)",
+    votos:{
+      moraes:"Inconst.", barroso:"Inconst.", fachin:"Inconst.", zanin:"Inconst.", dino:"Inconst.", fux:"Const.",
+      toffoli:"Inconst.", gilmar:"Inconst.", carmen:"Inconst.", andre:"Const.", kassio:"Inconst.",
+    }, aprovado:true },
+  { id:"habeas-corpus-aborto", emoji:"⚕️", titulo:"Aborto até 22 semanas — ADPF", processo:"ADPF 442",
+    descricao:"ADPF que pede a descriminalização do aborto até 22 semanas de gestação. Ainda não julgada.",
+    data:"Pendente", resultado:"Aguardando julgamento",
+    votos:{
+      moraes:"?", barroso:"Favorável (histórico)", fachin:"?", zanin:"?", dino:"?", fux:"?",
+      toffoli:"?", gilmar:"?", carmen:"?", andre:"?", kassio:"?",
+    }, aprovado:null },
+  { id:"emendas-pix", emoji:"💸", titulo:"Bloqueio das Emendas Parlamentares", processo:"ADPF 850 e outros",
+    descricao:"Flávio Dino bloqueou o pagamento de emendas parlamentares via Pix exigindo maior transparência.",
+    data:"Nov 2023", resultado:"Mantido pelo plenário",
+    votos:{
+      moraes:"Sim", barroso:"Sim", fachin:"Sim", zanin:"Sim", dino:"Relator", fux:"Divergência",
+      toffoli:"Sim", gilmar:"Divergência", carmen:"Sim", andre:"Divergência", kassio:"Divergência",
+    }, aprovado:true },
+  { id:"bolsonaro-golpe", emoji:"⚔️", titulo:"Inquérito Golpe de Estado", processo:"Inq. 4.781",
+    descricao:"Investigação sobre suposta tentativa de golpe de Estado envolvendo Bolsonaro e militares em 2022/2023.",
+    data:"2023/2025", resultado:"Em andamento",
+    votos:{
+      moraes:"Relator", barroso:"?", fachin:"?", zanin:"?", dino:"?", fux:"?",
+      toffoli:"?", gilmar:"?", carmen:"?", andre:"?", kassio:"?",
+    }, aprovado:null },
+];
+
+function TelaSTF({ s, tema, setTema, setTela }) {
+  const T = s.T; const dark = tema === "dark";
+  const [ministrSel, setMinistrSel] = useState(null);
+  const [casoSel, setCasoSel] = useState(null);
+  const [aba, setAba] = useState("ministros"); // ministros | casos
+  const [filtro, setFiltro] = useState("todos"); // todos | progressista | conservador | lula | bolsonaro
+
+  const corVotoSTF = v => {
+    if (!v) return T.textMuted;
+    const vl = v.toLowerCase();
+    if (vl.includes("sim")||vl.includes("inconst")) return "#00d464";
+    if (vl.includes("não")||vl.includes("const.")) return "#ff4d6d";
+    if (vl.includes("relator")) return "#00d4aa";
+    if (vl.includes("?")) return T.textMuted;
+    return "#ffd60a";
+  };
+  const emVotoSTF = v => {
+    if (!v) return "⬜";
+    const vl = v.toLowerCase();
+    if (vl.includes("sim")||vl.includes("inconst")) return "✅";
+    if (vl.includes("não")||vl.includes("const.")) return "❌";
+    if (vl.includes("relator")) return "⚖️";
+    return "🔍";
+  };
+
+  const ministrFilt = MINISTROS_STF.filter(m => {
+    if (filtro === "progressista") return m.perfil.progressista >= 60;
+    if (filtro === "conservador") return m.perfil.conservador >= 60;
+    if (filtro === "lula") return ["Lula","Dilma","FHC"].includes(m.indicadoPor);
+    if (filtro === "bolsonaro") return m.indicadoPor === "Bolsonaro";
+    return true;
+  });
+
+  const NavBar = () => (
+    <nav style={s.nav}>
+      <div style={s.logo} onClick={()=>{setMinistrSel(null);setCasoSel(null)}}><IconShield/> ANTICORRUPÇÃO.BR</div>
+      <div style={s.navLinks}>
+        <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
+        <button style={s.navBtn(false)} onClick={()=>setTela("senado")}>🏛️ SENADO</button>
+        <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
+        <button style={s.navBtn(true)}>⚖️ STF</button>
+        <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
+          {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
+        </button>
+      </div>
+    </nav>
+  );
+
+  // Perfil do ministro
+  if (ministrSel) {
+    const m = ministrSel;
+    const anosRestantes = m.aposentadoria - new Date().getFullYear();
+    return (
+      <div style={s.app}>
+        <div style={s.grid}/><NavBar/>
+        <div style={{...s.main,maxWidth:"800px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
+            <span onClick={()=>setMinistrSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>⚖️ STF</span>
+            <span style={{color:T.textMuted}}>›</span>
+            <span style={{color:T.textSecondary}}>{m.nome}</span>
+          </div>
+          {/* Card ministro */}
+          <div style={{background:T.subCardBg,border:`1px solid ${m.cor}44`,borderLeft:`4px solid ${m.cor}`,borderRadius:"12px",padding:"22px",marginBottom:"20px"}}>
+            <div style={{display:"flex",gap:"18px",alignItems:"flex-start"}}>
+              {/* Avatar com iniciais */}
+              <div style={{width:"72px",height:"72px",borderRadius:"50%",background:`${m.cor}22`,border:`3px solid ${m.cor}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"22px",fontWeight:"800",color:m.cor}}>
+                {m.nome.split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("")}
+              </div>
+              <div style={{flex:1}}>
+                <h2 style={{margin:"0 0 6px",fontSize:"18px",fontWeight:"800",color:T.textPrimary}}>{m.nome}</h2>
+                <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"10px"}}>
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:T.tagBg,color:T.tagText,fontWeight:"700"}}>{m.cargo}</span>
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:`${m.cor}22`,color:m.cor,fontWeight:"700"}}>Indicado por {m.indicadoPor}</span>
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:T.tagBg,color:T.tagText,fontWeight:"700"}}>Desde {m.desde}</span>
+                  <span style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:anosRestantes<5?"rgba(255,77,109,0.15)":T.tagBg,color:anosRestantes<5?"#ff4d6d":T.tagText,fontWeight:"700"}}>
+                    Aposenta {m.aposentadoria} ({anosRestantes > 0 ? `${anosRestantes} anos` : "este ano"})
+                  </span>
+                </div>
+                <p style={{margin:0,fontSize:"12px",color:T.textSecondary,lineHeight:"1.7"}}>{m.descricao}</p>
+              </div>
+            </div>
+            {/* Aprovação Senado */}
+            {m.aprovacaoSenado && (
+              <div style={{marginTop:"16px",padding:"12px",background:T.cardBg,borderRadius:"8px",display:"flex",gap:"16px",alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{fontSize:"11px",color:T.textLabel,fontWeight:"700",letterSpacing:"0.08em"}}>APROVAÇÃO NO SENADO</span>
+                <span style={{color:"#00d464",fontWeight:"800",fontSize:"14px"}}>✅ {m.simSenado} SIM</span>
+                <span style={{color:"#ff4d6d",fontWeight:"800",fontSize:"14px"}}>❌ {m.naoSenado} NÃO</span>
+                <span style={{fontSize:"11px",color:T.textMuted}}>({Math.round(m.simSenado/(m.simSenado+m.naoSenado)*100)}% de aprovação)</span>
+              </div>
+            )}
+            {/* Barra progressista/conservador */}
+            <div style={{marginTop:"16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:"10px",color:T.textMuted,marginBottom:"6px"}}>
+                <span style={{fontWeight:"700",color:"#ef4444"}}>◀ CONSERVADOR</span>
+                <span style={{fontWeight:"700",color:"#a78bfa"}}>PROGRESSISTA ▶</span>
+              </div>
+              <div style={{height:"8px",background:"#ef444422",borderRadius:"4px",overflow:"hidden"}}>
+                <div style={{width:`${m.perfil.progressista}%`,height:"100%",background:"linear-gradient(90deg,#ef4444,#a78bfa)",borderRadius:"4px"}}/>
+              </div>
+              <div style={{fontSize:"10px",color:T.textMuted,marginTop:"4px",textAlign:"center"}}>
+                {m.perfil.progressista >= 60 ? `${m.perfil.progressista}% progressista` : `${m.perfil.conservador}% conservador`} (análise baseada em votos)
+              </div>
+            </div>
+          </div>
+          {/* Decisões destaque */}
+          <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"10px"}}>📋 DECISÕES E POSIÇÕES NOTÁVEIS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"6px",marginBottom:"20px"}}>
+            {m.decisoesDestaque.map((d,i)=>(
+              <div key={i} style={{background:T.subCardBg,border:`1px solid ${T.divider}`,borderRadius:"8px",padding:"10px 14px",display:"flex",gap:"10px",alignItems:"center"}}>
+                <span style={{color:m.cor,fontSize:"14px",flexShrink:0}}>›</span>
+                <span style={{fontSize:"12px",color:T.textSecondary}}>{d}</span>
+              </div>
+            ))}
+          </div>
+          {/* Como votou nos casos */}
+          <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"10px"}}>⚖️ COMO VOTOU NOS CASOS HISTÓRICOS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+            {CASOS_STF.map(caso=>{
+              const voto = caso.votos[m.id];
+              const cor = corVotoSTF(voto); const em = emVotoSTF(voto);
+              return (
+                <div key={caso.id} onClick={()=>{setMinistrSel(null);setCasoSel(caso);}}
+                  style={{background:T.cardBg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"12px 14px",display:"flex",gap:"12px",alignItems:"center",cursor:"pointer"}}>
+                  <span style={{fontSize:"20px",flexShrink:0}}>{caso.emoji}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary}}>{caso.titulo}</div>
+                    <div style={{fontSize:"10px",color:T.textMuted}}>{caso.processo} · {caso.data}</div>
+                  </div>
+                  <div style={{textAlign:"center",flexShrink:0}}>
+                    <div style={{fontSize:"18px"}}>{em}</div>
+                    <div style={{fontSize:"9px",fontWeight:"800",color:cor,marginTop:"1px"}}>{voto||"—"}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Detalhe de um caso
+  if (casoSel) {
+    const caso = casoSel;
+    return (
+      <div style={s.app}>
+        <div style={s.grid}/><NavBar/>
+        <div style={{...s.main,maxWidth:"860px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
+            <span onClick={()=>setCasoSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>⚖️ STF</span>
+            <span style={{color:T.textMuted}}>›</span>
+            <span style={{color:T.textSecondary}}>{caso.titulo}</span>
+          </div>
+          <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"20px",marginBottom:"20px"}}>
+            <div style={{display:"flex",gap:"14px"}}>
+              <span style={{fontSize:"32px"}}>{caso.emoji}</span>
+              <div style={{flex:1}}>
+                <h2 style={{margin:"0 0 6px",fontSize:"17px",fontWeight:"800",color:T.textPrimary}}>{caso.titulo}</h2>
+                <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"10px"}}>
+                  <span style={{fontSize:"10px",padding:"2px 8px",borderRadius:"10px",background:T.tagBg,color:T.tagText,fontWeight:"600"}}>{caso.processo}</span>
+                  <span style={{fontSize:"10px",padding:"2px 8px",borderRadius:"10px",background:T.tagBg,color:T.tagText,fontWeight:"600"}}>{caso.data}</span>
+                  <span style={{fontSize:"10px",padding:"2px 8px",borderRadius:"10px",
+                    background:caso.aprovado===true?"rgba(0,212,100,0.15)":caso.aprovado===false?"rgba(255,77,109,0.15)":"rgba(255,214,10,0.15)",
+                    color:caso.aprovado===true?"#00d464":caso.aprovado===false?"#ff4d6d":"#ffd60a",fontWeight:"700"}}>
+                    {caso.resultado}
+                  </span>
+                </div>
+                <p style={{margin:0,fontSize:"12px",color:T.textSecondary,lineHeight:"1.7"}}>{caso.descricao}</p>
+              </div>
+            </div>
+          </div>
+          <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"10px"}}>🗳️ COMO CADA MINISTRO VOTOU</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:"8px"}}>
+            {MINISTROS_STF.map(m=>{
+              const voto = caso.votos[m.id];
+              const cor = corVotoSTF(voto); const em = emVotoSTF(voto);
+              return (
+                <div key={m.id} onClick={()=>{setCasoSel(null);setMinistrSel(m);}}
+                  style={{background:T.cardBg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"12px 14px",display:"flex",gap:"12px",alignItems:"center",cursor:"pointer"}}>
+                  <div style={{width:"36px",height:"36px",borderRadius:"50%",background:`${m.cor}22`,border:`2px solid ${m.cor}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:"800",color:m.cor,flexShrink:0}}>
+                    {m.nome.split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("")}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.nome}</div>
+                    <div style={{fontSize:"10px",color:T.textMuted}}>Indicado: {m.indicadoPor}</div>
+                  </div>
+                  <div style={{textAlign:"center",flexShrink:0}}>
+                    <div style={{fontSize:"18px"}}>{em}</div>
+                    <div style={{fontSize:"9px",fontWeight:"800",color:cor,marginTop:"1px",maxWidth:"60px",wordBreak:"break-word",textAlign:"center"}}>{voto||"—"}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela principal
+  return (
+    <div style={s.app}>
+      <div style={s.grid}/><NavBar/>
+      <div style={{...s.main,maxWidth:"1100px"}}>
+        {/* Header */}
+        <div style={{marginBottom:"20px"}}>
+          <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>PODER JUDICIÁRIO · SUPREMO TRIBUNAL FEDERAL</div>
+          <h1 style={{margin:"0 0 6px",fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>STF — Supremo Tribunal Federal</h1>
+          <p style={{margin:0,fontSize:"13px",color:T.textSecondary}}>11 ministros vitalícios que interpretam a Constituição. Clique em um ministro ou caso para ver detalhes.</p>
+        </div>
+        {/* Tabs */}
+        <div style={{display:"flex",gap:"4px",marginBottom:"20px"}}>
+          {[{id:"ministros",label:"👤 MINISTROS"},{id:"casos",label:"⚖️ CASOS HISTÓRICOS"}].map(t=>(
+            <button key={t.id} onClick={()=>setAba(t.id)} style={{
+              padding:"7px 16px",borderRadius:"6px",fontFamily:"inherit",fontSize:"11px",fontWeight:"700",cursor:"pointer",
+              background:aba===t.id?T.accentDim:T.tagBg,
+              color:aba===t.id?"#00d4aa":T.textSecondary,
+              border:`1px solid ${aba===t.id?"#00d4aa44":T.inputBorder}`,
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {aba === "ministros" && (<>
+          {/* Filtros */}
+          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"16px"}}>
+            {[{id:"todos",label:"Todos"},
+              {id:"progressista",label:"🟣 Progressistas"},
+              {id:"conservador",label:"🔴 Conservadores"},
+              {id:"lula",label:"🔵 Indicados PT/PSDB"},
+              {id:"bolsonaro",label:"🟡 Indicados Bolsonaro"}].map(f=>(
+              <button key={f.id} onClick={()=>setFiltro(f.id)} style={{
+                padding:"5px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+                background:filtro===f.id?T.accentDim:T.tagBg,
+                color:filtro===f.id?"#00d4aa":T.textSecondary,
+                border:`1px solid ${filtro===f.id?"#00d4aa44":T.inputBorder}`,
+              }}>{f.label}</button>
+            ))}
+          </div>
+          {/* Grid ministros */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"10px"}}>
+            {ministrFilt.map(m=>{
+              const anosR = m.aposentadoria - new Date().getFullYear();
+              return (
+                <div key={m.id} onClick={()=>setMinistrSel(m)}
+                  style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderLeft:`3px solid ${m.cor}`,borderRadius:"10px",padding:"16px",cursor:"pointer"}}>
+                  <div style={{display:"flex",gap:"14px",alignItems:"center",marginBottom:"12px"}}>
+                    <div style={{width:"48px",height:"48px",borderRadius:"50%",background:`${m.cor}22`,border:`2px solid ${m.cor}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"16px",fontWeight:"800",color:m.cor,flexShrink:0}}>
+                      {m.nome.split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("")}
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:"13px",fontWeight:"800",color:T.textPrimary}}>{m.nome}</div>
+                      <div style={{fontSize:"10px",color:T.textSecondary,marginTop:"2px"}}>{m.cargo}</div>
+                      <div style={{display:"flex",gap:"5px",marginTop:"5px",flexWrap:"wrap"}}>
+                        <span style={{fontSize:"9px",padding:"2px 7px",borderRadius:"3px",background:`${m.cor}22`,color:m.cor,fontWeight:"700"}}>Indicado: {m.indicadoPor}</span>
+                        <span style={{fontSize:"9px",padding:"2px 7px",borderRadius:"3px",background:anosR<=4?"rgba(255,77,109,0.15)":T.tagBg,color:anosR<=4?"#ff4d6d":T.textMuted,fontWeight:"600"}}>
+                          {anosR > 0 ? `Aposenta em ${m.aposentadoria}` : `Aposenta ${m.aposentadoria}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Barra progressista/conservador */}
+                  <div style={{height:"5px",background:"#ef444422",borderRadius:"3px",overflow:"hidden"}}>
+                    <div style={{width:`${m.perfil.progressista}%`,height:"100%",background:"linear-gradient(90deg,#ef4444,#a78bfa)"}}/>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:"9px",color:T.textMuted,marginTop:"3px"}}>
+                    <span>Conservador</span><span>Progressista</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>)}
+
+        {aba === "casos" && (
+          <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+            {CASOS_STF.map(caso=>{
+              const simCount = Object.values(caso.votos).filter(v=>v?.toLowerCase().includes("sim")||v?.toLowerCase().includes("inconst")).length;
+              const naoCount = Object.values(caso.votos).filter(v=>v?.toLowerCase().includes("não")||v?.toLowerCase().includes("const.")).length;
+              return (
+                <div key={caso.id} onClick={()=>setCasoSel(caso)}
+                  style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"10px",padding:"18px",cursor:"pointer",display:"flex",gap:"14px",alignItems:"center"}}>
+                  <span style={{fontSize:"28px",flexShrink:0}}>{caso.emoji}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"5px",flexWrap:"wrap"}}>
+                      <span style={{fontSize:"14px",fontWeight:"800",color:T.textPrimary}}>{caso.titulo}</span>
+                      <span style={{fontSize:"10px",color:T.textMuted,background:T.tagBg,padding:"2px 8px",borderRadius:"10px"}}>{caso.processo}</span>
+                    </div>
+                    <p style={{margin:"0 0 8px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.5"}}>{caso.descricao}</p>
+                    <div style={{display:"flex",gap:"10px",fontSize:"10px",flexWrap:"wrap",alignItems:"center"}}>
+                      {simCount > 0 && <span style={{color:"#00d464",fontWeight:"700"}}>✅ {simCount} favoráveis</span>}
+                      {naoCount > 0 && <span style={{color:"#ff4d6d",fontWeight:"700"}}>❌ {naoCount} contrários</span>}
+                      <span style={{padding:"2px 8px",borderRadius:"10px",
+                        background:caso.aprovado===true?"rgba(0,212,100,0.1)":caso.aprovado===false?"rgba(255,77,109,0.1)":"rgba(255,214,10,0.1)",
+                        color:caso.aprovado===true?"#00d464":caso.aprovado===false?"#ff4d6d":"#ffd60a",fontWeight:"700"}}>
+                        {caso.resultado}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{color:"#00d4aa",fontSize:"18px",flexShrink:0}}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AntiCorrupcaoBR() {
   const [tela, setTela] = useState("lista");
   const [deputados, setDeputados] = useState([]);
@@ -1503,6 +1917,7 @@ export default function AntiCorrupcaoBR() {
   if (tela === "upload") return <TelaUpload s={s} setTela={setTela} tema={tema} setTema={setTema} />;
   if (tela === "votacoes") return <TelaVotacoes s={s} tema={tema} setTema={setTema} setTela={setTela} />;
   if (tela === "senado") return <TelaSenado s={s} tema={tema} setTema={setTema} setTela={setTela} />;
+  if (tela === "stf") return <TelaSTF s={s} tema={tema} setTema={setTema} setTela={setTela} />;
 
   return (
     <div style={s.app}>
@@ -1513,6 +1928,7 @@ export default function AntiCorrupcaoBR() {
           <button style={s.navBtn(tela==="lista")} onClick={()=>setTela("lista")}>DEPUTADOS</button>
           <button style={s.navBtn(tela==="senado")} onClick={()=>setTela("senado")}>🏛️ SENADO</button>
           <button style={s.navBtn(tela==="votacoes")} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
+          <button style={s.navBtn(tela==="stf")} onClick={()=>setTela("stf")}>⚖️ STF</button>
           <button style={s.navBtn(tela==="upload")} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
           <button onClick={()=>setTema(dark?"light":"dark")} style={{ marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit" }}>{dark?"☀️":"🌙"}<span style={{ fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em" }}>{dark?"CLARO":"ESCURO"}</span></button>
         </div>
