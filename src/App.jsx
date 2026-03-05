@@ -196,7 +196,7 @@ function NavBar({ telaAtual, setTela, setTema, tema, s }) {
   return (
     <nav style={s.nav}>
       {/* Logo */}
-      <div style={s.logo} onClick={()=>setTela("lista")}>
+      <div style={s.logo} onClick={()=>setTela("home")}>
         <IconShield/>
         <span style={{display:"flex",flexDirection:"column",lineHeight:1.1}}>
           <span style={{fontSize:"13px",fontWeight:"800",letterSpacing:"0.06em"}}>ANTICORRUPÇÃO</span>
@@ -260,6 +260,173 @@ function BotaoVoltar({ onClick, label, s }) {
       <span style={{fontSize:"18px",lineHeight:1,fontWeight:"400"}}>←</span>
       <span>{label || "VOLTAR"}</span>
     </button>
+  );
+}
+
+
+// ── Tela Home / Landing ───────────────────────────────────────────────────────
+function TelaHome({ s, tema, setTema, setTela }) {
+  const T = s.T; const dark = tema === "dark";
+
+  const SECOES = [
+    {
+      id: "lista", emoji: "👥", titulo: "Câmara dos Deputados",
+      subtitulo: "513 deputados federais",
+      descricao: "Perfil de cada deputado com score de transparência calculado por IA, despesas reais do CEAP, fornecedores e alertas de irregularidades.",
+      cor: "#00d4aa",
+      stats: [
+        { v: "513", l: "Deputados" },
+        { v: "IA", l: "Score" },
+        { v: "2022–2026", l: "Legislatura" },
+      ],
+    },
+    {
+      id: "senado", emoji: "🏛️", titulo: "Senado Federal",
+      subtitulo: "81 senadores",
+      descricao: "Todos os senadores em exercício com votações em temas sensíveis: Reforma Tributária, Marco Temporal, Arcabouço Fiscal e mais.",
+      cor: "#a78bfa",
+      stats: [
+        { v: "81", l: "Senadores" },
+        { v: "6", l: "Temas" },
+        { v: "API", l: "Senado" },
+      ],
+    },
+    {
+      id: "votacoes", emoji: "🗳️", titulo: "Votações Nominais",
+      subtitulo: "13 temas polêmicos na Câmara",
+      descricao: "Como cada deputado votou nas pautas mais relevantes: Reforma da Previdência, FUNDEB, Igualdade Salarial, Voto Impresso, Drogas e mais.",
+      cor: "#fb923c",
+      stats: [
+        { v: "13", l: "Temas" },
+        { v: "513", l: "Votos" },
+        { v: "Câmara", l: "Federal" },
+      ],
+    },
+    {
+      id: "stf", emoji: "⚖️", titulo: "STF — Supremo Tribunal Federal",
+      subtitulo: "11 ministros",
+      descricao: "Composição do STF, perfil de cada ministro com quem os indicou, mandato, posicionamento e como votaram nos casos históricos.",
+      cor: "#ffd60a",
+      stats: [
+        { v: "11", l: "Ministros" },
+        { v: "6", l: "Casos" },
+        { v: "Vitalício", l: "Mandato" },
+      ],
+    },
+  ];
+
+  return (
+    <div style={s.app}>
+      <div style={s.grid}/>
+
+      {/* Nav simplificada na home */}
+      <nav style={{...s.nav, justifyContent:"space-between"}}>
+        <div style={s.logo}>
+          <IconShield/>
+          <span style={{display:"flex",flexDirection:"column",lineHeight:1.1}}>
+            <span style={{fontSize:"13px",fontWeight:"800",letterSpacing:"0.06em"}}>ANTICORRUPÇÃO</span>
+            <span style={{fontSize:"9px",letterSpacing:"0.2em",color:T.textMuted,fontWeight:"600"}}>.BR · DADOS ABERTOS</span>
+          </span>
+        </div>
+        <button onClick={()=>setTema(dark?"light":"dark")}
+          style={{display:"flex",alignItems:"center",gap:"6px",padding:"8px 12px",borderRadius:"6px",cursor:"pointer",background:T.tagBg,border:`1px solid ${T.cardBorder}`,color:T.textSecondary,fontFamily:"inherit",fontWeight:"700",fontSize:"11px"}}>
+          <span style={{fontSize:"14px"}}>{dark?"☀️":"🌙"}</span>
+          <span>{dark?"CLARO":"ESCURO"}</span>
+        </button>
+      </nav>
+
+      <div style={{...s.main, maxWidth:"1000px", paddingTop:"48px"}}>
+
+        {/* Hero */}
+        <div style={{textAlign:"center", marginBottom:"56px"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:"8px",background:T.accentDim,border:`1px solid #00d4aa44`,borderRadius:"20px",padding:"6px 16px",fontSize:"10px",color:"#00d4aa",fontWeight:"800",letterSpacing:"0.12em",marginBottom:"24px"}}>
+            ● DADOS OFICIAIS · API ABERTA · ATUALIZADO EM TEMPO REAL
+          </div>
+          <h1 style={{fontSize:"clamp(28px,5vw,48px)",fontWeight:"800",color:T.textPrimary,margin:"0 0 16px",lineHeight:1.1,letterSpacing:"-0.02em"}}>
+            Fiscalize seus<br/>
+            <span style={{color:"#00d4aa",textShadow:"0 0 40px #00d4aa66"}}>representantes</span>
+          </h1>
+          <p style={{fontSize:"15px",color:T.textSecondary,margin:"0 auto",maxWidth:"560px",lineHeight:"1.7",fontWeight:"400"}}>
+            Transparência radical no Legislativo e Judiciário brasileiro.
+            Dados reais das APIs oficiais. Sem filtro, sem editorial.
+          </p>
+
+          {/* Contadores */}
+          <div style={{display:"flex",justifyContent:"center",gap:"8px",flexWrap:"wrap",marginTop:"32px"}}>
+            {[
+              {v:"513", l:"Deputados"},
+              {v:"81",  l:"Senadores"},
+              {v:"11",  l:"Ministros STF"},
+              {v:"19",  l:"Temas votados"},
+            ].map((item,i) => (
+              <div key={i} style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"14px 22px",minWidth:"100px"}}>
+                <div style={{fontSize:"24px",fontWeight:"800",color:"#00d4aa",lineHeight:1}}>{item.v}</div>
+                <div style={{fontSize:"10px",color:T.textMuted,marginTop:"4px",letterSpacing:"0.08em",fontWeight:"600"}}>{item.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Cards das seções */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(440px,1fr))",gap:"14px",marginBottom:"48px"}}>
+          {SECOES.map(sec => (
+            <div key={sec.id} onClick={()=>setTela(sec.id)}
+              style={{
+                background:T.cardBg,
+                border:`1px solid ${T.cardBorder}`,
+                borderLeft:`4px solid ${sec.cor}`,
+                borderRadius:"12px",padding:"24px",cursor:"pointer",
+                transition:"all 0.2s",
+                position:"relative",overflow:"hidden",
+              }}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=sec.cor;e.currentTarget.style.background=`${sec.cor}0a`;e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 8px 24px ${sec.cor}22`;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.cardBorder;e.currentTarget.style.borderLeftColor=sec.cor;e.currentTarget.style.background=T.cardBg;e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
+
+              {/* Emoji de fundo decorativo */}
+              <div style={{position:"absolute",right:"16px",top:"12px",fontSize:"48px",opacity:0.07,pointerEvents:"none",userSelect:"none"}}>{sec.emoji}</div>
+
+              <div style={{display:"flex",gap:"14px",alignItems:"flex-start",marginBottom:"14px"}}>
+                <div style={{width:"48px",height:"48px",borderRadius:"10px",background:`${sec.cor}22`,border:`1px solid ${sec.cor}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"22px",flexShrink:0}}>
+                  {sec.emoji}
+                </div>
+                <div>
+                  <h2 style={{margin:"0 0 3px",fontSize:"15px",fontWeight:"800",color:T.textPrimary}}>{sec.titulo}</h2>
+                  <div style={{fontSize:"10px",color:sec.cor,fontWeight:"700",letterSpacing:"0.08em"}}>{sec.subtitulo.toUpperCase()}</div>
+                </div>
+              </div>
+
+              <p style={{margin:"0 0 16px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.7"}}>{sec.descricao}</p>
+
+              <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
+                {sec.stats.map((st,i) => (
+                  <span key={i} style={{fontSize:"10px",padding:"3px 10px",borderRadius:"4px",background:`${sec.cor}18`,color:sec.cor,fontWeight:"700",border:`1px solid ${sec.cor}33`}}>
+                    {st.v} {st.l}
+                  </span>
+                ))}
+                <span style={{marginLeft:"auto",fontSize:"11px",color:sec.cor,fontWeight:"800",display:"flex",alignItems:"center",gap:"4px"}}>
+                  ACESSAR <span>→</span>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Rodapé informativo */}
+        <div style={{borderTop:`1px solid ${T.divider}`,paddingTop:"28px",display:"flex",gap:"24px",flexWrap:"wrap",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:"11px",color:T.textMuted,lineHeight:"1.7",maxWidth:"480px"}}>
+            <strong style={{color:T.textSecondary}}>Fontes:</strong> API da Câmara dos Deputados · API do Senado Federal · Portal STF<br/>
+            Os dados são buscados em tempo real das APIs oficiais do governo brasileiro.<br/>
+            Scores de transparência calculados por IA com base em despesas declaradas.
+          </div>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+            {["Código aberto","Dados oficiais","Sem fins lucrativos"].map((t,i)=>(
+              <span key={i} style={{fontSize:"9px",padding:"3px 10px",borderRadius:"10px",background:T.tagBg,color:T.textMuted,border:`1px solid ${T.divider}`,fontWeight:"600",letterSpacing:"0.06em"}}>✓ {t}</span>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
   );
 }
 
@@ -1783,7 +1950,7 @@ function TelaSTF({ s, tema, setTema, setTela }) {
 }
 
 export default function AntiCorrupcaoBR() {
-  const [tela, setTela] = useState("lista");
+  const [tela, setTela] = useState("home");
   const [deputados, setDeputados] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [progresso, setProgresso] = useState(0);
@@ -1932,6 +2099,7 @@ export default function AntiCorrupcaoBR() {
   const contAlerta = deputados.filter(d => d.classificacao === "alerta").length;
   const contSuspeito = deputados.filter(d => d.classificacao === "suspeito").length;
 
+  if (tela === "home") return <TelaHome s={s} tema={tema} setTema={setTema} setTela={setTela} />;
   if (depSelecionado) return <TelaPerfilDeputado dep={depSelecionado} onVoltar={() => setDepSelecionado(null)} s={s} tema={tema} setTema={setTema} />;
   if (tela === "upload") return <TelaUpload s={s} setTela={setTela} tema={tema} setTema={setTema} />;
   if (tela === "votacoes") return <TelaVotacoes s={s} tema={tema} setTema={setTema} setTela={setTela} />;
