@@ -183,6 +183,86 @@ function gerarAlertas(despesas) {
 }
 
 // ── Perfil Deputado ───────────────────────────────────────────────────────────
+
+// ── Componente de Navegação Global ──────────────────────────────────────────
+function NavBar({ telaAtual, setTela, setTema, tema, s }) {
+  const T = s.T; const dark = tema === "dark";
+  const ITENS = [
+    { id:"lista",    label:"DEPUTADOS",  emoji:"👥" },
+    { id:"senado",   label:"SENADO",     emoji:"🏛️" },
+    { id:"votacoes", label:"VOTAÇÕES",   emoji:"🗳️" },
+    { id:"stf",      label:"STF",        emoji:"⚖️" },
+  ];
+  return (
+    <nav style={s.nav}>
+      {/* Logo */}
+      <div style={s.logo} onClick={()=>setTela("lista")}>
+        <IconShield/>
+        <span style={{display:"flex",flexDirection:"column",lineHeight:1.1}}>
+          <span style={{fontSize:"13px",fontWeight:"800",letterSpacing:"0.06em"}}>ANTICORRUPÇÃO</span>
+          <span style={{fontSize:"9px",letterSpacing:"0.2em",color:T.textMuted,fontWeight:"600"}}>.BR · DADOS ABERTOS</span>
+        </span>
+      </div>
+      {/* Itens de nav */}
+      <div style={s.navLinks}>
+        {ITENS.map(item => {
+          const ativo = telaAtual === item.id;
+          return (
+            <button key={item.id}
+              onClick={()=>setTela(item.id)}
+              style={{
+                display:"flex",alignItems:"center",gap:"6px",
+                padding:"8px 16px",borderRadius:"6px",cursor:"pointer",
+                fontFamily:"inherit",fontSize:"11px",fontWeight:"800",
+                letterSpacing:"0.07em",transition:"all 0.15s",
+                background: ativo ? "#00d4aa" : T.tagBg,
+                color: ativo ? "#0a0e1a" : T.textSecondary,
+                border: ativo ? "1px solid #00d4aa" : `1px solid ${T.cardBorder}`,
+                boxShadow: ativo ? "0 0 12px #00d4aa44" : "none",
+              }}>
+              <span style={{fontSize:"14px"}}>{item.emoji}</span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+        {/* Separador */}
+        <div style={{width:"1px",height:"20px",background:T.divider,margin:"0 4px"}}/>
+        {/* Botão modo claro/escuro */}
+        <button onClick={()=>setTema(dark?"light":"dark")}
+          style={{display:"flex",alignItems:"center",gap:"6px",padding:"8px 12px",
+            borderRadius:"6px",cursor:"pointer",background:T.tagBg,
+            border:`1px solid ${T.cardBorder}`,color:T.textSecondary,
+            fontFamily:"inherit",fontWeight:"700",fontSize:"11px"}}>
+          <span style={{fontSize:"14px"}}>{dark?"☀️":"🌙"}</span>
+          <span>{dark?"CLARO":"ESCURO"}</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+// ── Botão Voltar padronizado ──────────────────────────────────────────────────
+function BotaoVoltar({ onClick, label, s }) {
+  const T = s.T;
+  return (
+    <button onClick={onClick} style={{
+      display:"inline-flex",alignItems:"center",gap:"10px",
+      background:T.tagBg,
+      border:`2px solid ${T.cardBorder}`,
+      color:T.textPrimary,
+      padding:"10px 20px",borderRadius:"8px",
+      fontSize:"12px",fontFamily:"inherit",cursor:"pointer",
+      fontWeight:"800",letterSpacing:"0.06em",marginBottom:"20px",
+      transition:"all 0.15s",
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor="#00d4aa";e.currentTarget.style.color="#00d4aa";}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.cardBorder;e.currentTarget.style.color=T.textPrimary;}}>
+      <span style={{fontSize:"18px",lineHeight:1,fontWeight:"400"}}>←</span>
+      <span>{label || "VOLTAR"}</span>
+    </button>
+  );
+}
+
 function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
   const [despesas, setDespesas] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -242,17 +322,12 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
   return (
     <div style={s.app}>
       <div style={s.grid} />
-      <nav style={s.nav}>
-        <div style={s.logo} onClick={onVoltar}><IconShield /> ANTICORRUPÇÃO.BR</div>
-        <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
-          <button onClick={()=>setTema(dark?"light":"dark")} style={{ background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit" }}>{dark?"☀️":"🌙"}<span style={{ fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em" }}>{dark?"CLARO":"ESCURO"}</span></button>
-          <button onClick={onVoltar} style={{ background:T.tagBg,border:`1px solid ${T.inputBorder}`,color:T.textPrimary,padding:"7px 16px",borderRadius:"6px",fontSize:"12px",fontFamily:"inherit",cursor:"pointer",fontWeight:"700" }}>← VOLTAR</button>
-        </div>
-      </nav>
+      <NavBar telaAtual="lista" setTela={(t)=>{if(t==="lista")onVoltar();}} setTema={setTema} tema={tema} s={s}/>
       <div style={{ ...s.main, maxWidth: "800px" }}>
-        {/* Breadcrumb */}
+        {/* Botão voltar + Breadcrumb */}
+        <BotaoVoltar onClick={onVoltar} label="← VOLTAR PARA DEPUTADOS" s={s}/>
         <div style={{ display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px" }}>
-          <span onClick={onVoltar} style={{ color:"#00d4aa",cursor:"pointer",fontWeight:"600" }}>Deputados</span>
+          <span onClick={onVoltar} style={{ color:"#00d4aa",cursor:"pointer",fontWeight:"600" }}>👥 Deputados</span>
           <span style={{ color:T.textMuted }}>›</span>
           <span style={{ color:T.textSecondary,fontWeight:"500",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{dep.nome}</span>
         </div>
@@ -623,13 +698,7 @@ function TelaUpload({ s, setTela, tema, setTema }) {
   return (
     <div style={s.app}>
       <div style={s.grid}/>
-      <nav style={s.nav}>
-        <div style={s.logo}><IconShield /> ANTICORRUPÇÃO.BR</div>
-        <div style={s.navLinks}>
-          <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
-          <button style={s.navBtn(true)}>UPLOAD DOC</button>
-        </div>
-      </nav>
+      <NavBar telaAtual="upload" setTela={setTela} setTema={setTema} tema={tema} s={s}/>
       <div style={{...s.main,maxWidth:"620px"}}>
         <div style={{marginBottom:"28px"}}>
           <div style={{fontSize:"10px",color:"#555",letterSpacing:"0.15em",marginBottom:"6px"}}>ANÁLISE POR IA</div>
@@ -770,17 +839,7 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
   return (
     <div style={s.app}>
       <div style={s.grid}/>
-      <nav style={s.nav}>
-        <div style={s.logo} onClick={()=>{setTemaSel(null);setTela("votacoes")}}><IconShield/> ANTICORRUPÇÃO.BR</div>
-        <div style={s.navLinks}>
-          <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
-          <button style={s.navBtn(true)}>🗳️ VOTAÇÕES</button>
-          <button style={s.navBtn(false)} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
-          <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
-            {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
-          </button>
-        </div>
-      </nav>
+      <NavBar telaAtual="votacoes" setTela={(t)=>{if(t==="votacoes")setTemaSel&&setTemaSel(null);setTela(t);}} setTema={setTema} tema={tema} s={s}/>
 
       <div style={{...s.main,maxWidth:"900px"}}>
         {!temaSel ? (<>
@@ -1087,20 +1146,11 @@ function TelaSenado({ s, tema, setTema, setTela }) {
     return (
       <div style={s.app}>
         <div style={s.grid}/>
-        <nav style={s.nav}>
-          <div style={s.logo} onClick={()=>setSenadorSel(null)}><IconShield/> ANTICORRUPÇÃO.BR</div>
-          <div style={s.navLinks}>
-            <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
-            <button style={s.navBtn(true)}>🏛️ SENADO</button>
-            <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
-            <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
-              {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
-            </button>
-          </div>
-        </nav>
+        <NavBar telaAtual="senado" setTela={(t)=>{setSenadorSel(null);if(t!=="senado")setTela(t);}} setTema={setTema} tema={tema} s={s}/>
         <div style={{...s.main,maxWidth:"800px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
-            <span onClick={()=>setSenadorSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>Senado</span>
+          <BotaoVoltar onClick={()=>setSenadorSel(null)} label="← VOLTAR PARA SENADO" s={s}/>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px",fontSize:"12px"}}>
+            <span onClick={()=>setSenadorSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>🏛️ Senado</span>
             <span style={{color:T.textMuted}}>›</span>
             <span style={{color:T.textSecondary,fontWeight:"500"}}>{senadorSel.nome}</span>
           </div>
@@ -1168,20 +1218,11 @@ function TelaSenado({ s, tema, setTema, setTela }) {
     return (
       <div style={s.app}>
         <div style={s.grid}/>
-        <nav style={s.nav}>
-          <div style={s.logo} onClick={()=>setAbaVot(null)}><IconShield/> ANTICORRUPÇÃO.BR</div>
-          <div style={s.navLinks}>
-            <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
-            <button style={s.navBtn(true)}>🏛️ SENADO</button>
-            <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
-            <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
-              {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
-            </button>
-          </div>
-        </nav>
+        <NavBar telaAtual="senado" setTela={(t)=>{setAbaVot(null);if(t!=="senado")setTela(t);}} setTema={setTema} tema={tema} s={s}/>
         <div style={{...s.main,maxWidth:"860px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
-            <span onClick={()=>setAbaVot(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>Senado</span>
+          <BotaoVoltar onClick={()=>setAbaVot(null)} label="← VOLTAR PARA SENADO" s={s}/>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px",fontSize:"12px"}}>
+            <span onClick={()=>setAbaVot(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>🏛️ Senado</span>
             <span style={{color:T.textMuted}}>›</span>
             <span style={{color:T.textSecondary}}>{abaVot.titulo}</span>
           </div>
@@ -1257,18 +1298,7 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   return (
     <div style={s.app}>
       <div style={s.grid}/>
-      <nav style={s.nav}>
-        <div style={s.logo}><IconShield/> ANTICORRUPÇÃO.BR</div>
-        <div style={s.navLinks}>
-          <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
-          <button style={s.navBtn(true)}>🏛️ SENADO</button>
-          <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
-          <button style={s.navBtn(false)} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
-          <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
-            {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
-          </button>
-        </div>
-      </nav>
+      <NavBar telaAtual="senado" setTela={setTela} setTema={setTema} tema={tema} s={s}/>
       <div style={{...s.main,maxWidth:"1100px"}}>
         {/* Header */}
         <div style={{marginBottom:"20px"}}>
@@ -1487,20 +1517,7 @@ function TelaSTF({ s, tema, setTema, setTela }) {
     return true;
   });
 
-  const NavBar = () => (
-    <nav style={s.nav}>
-      <div style={s.logo} onClick={()=>{setMinistrSel(null);setCasoSel(null)}}><IconShield/> ANTICORRUPÇÃO.BR</div>
-      <div style={s.navLinks}>
-        <button style={s.navBtn(false)} onClick={()=>setTela("lista")}>DEPUTADOS</button>
-        <button style={s.navBtn(false)} onClick={()=>setTela("senado")}>🏛️ SENADO</button>
-        <button style={s.navBtn(false)} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
-        <button style={s.navBtn(true)}>⚖️ STF</button>
-        <button onClick={()=>setTema(dark?"light":"dark")} style={{marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit"}}>
-          {dark?"☀️":"🌙"}<span style={{fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em"}}>{dark?"CLARO":"ESCURO"}</span>
-        </button>
-      </div>
-    </nav>
-  );
+
 
   // Perfil do ministro
   if (ministrSel) {
@@ -1508,9 +1525,10 @@ function TelaSTF({ s, tema, setTema, setTela }) {
     const anosRestantes = m.aposentadoria - new Date().getFullYear();
     return (
       <div style={s.app}>
-        <div style={s.grid}/><NavBar/>
+        <div style={s.grid}/><NavBar telaAtual="stf" setTela={(t)=>{setMinistrSel(null);setCasoSel(null);if(t!=="stf")setTela(t);}} setTema={setTema} tema={tema} s={s}/>
         <div style={{...s.main,maxWidth:"800px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
+          <BotaoVoltar onClick={()=>setMinistrSel(null)} label="← VOLTAR PARA STF" s={s}/>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px",fontSize:"12px"}}>
             <span onClick={()=>setMinistrSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>⚖️ STF</span>
             <span style={{color:T.textMuted}}>›</span>
             <span style={{color:T.textSecondary}}>{m.nome}</span>
@@ -1600,9 +1618,10 @@ function TelaSTF({ s, tema, setTema, setTela }) {
     const caso = casoSel;
     return (
       <div style={s.app}>
-        <div style={s.grid}/><NavBar/>
+        <div style={s.grid}/><NavBar telaAtual="stf" setTela={(t)=>{setMinistrSel(null);setCasoSel(null);if(t!=="stf")setTela(t);}} setTema={setTema} tema={tema} s={s}/>
         <div style={{...s.main,maxWidth:"860px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
+          <BotaoVoltar onClick={()=>setCasoSel(null)} label="← VOLTAR PARA STF" s={s}/>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px",fontSize:"12px"}}>
             <span onClick={()=>setCasoSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>⚖️ STF</span>
             <span style={{color:T.textMuted}}>›</span>
             <span style={{color:T.textSecondary}}>{caso.titulo}</span>
@@ -1656,7 +1675,7 @@ function TelaSTF({ s, tema, setTema, setTela }) {
   // Tela principal
   return (
     <div style={s.app}>
-      <div style={s.grid}/><NavBar/>
+      <div style={s.grid}/><NavBar telaAtual="stf" setTela={(t)=>{setMinistrSel(null);setCasoSel(null);if(t!=="stf")setTela(t);}} setTema={setTema} tema={tema} s={s}/>
       <div style={{...s.main,maxWidth:"1100px"}}>
         {/* Header */}
         <div style={{marginBottom:"20px"}}>
@@ -1810,10 +1829,10 @@ export default function AntiCorrupcaoBR() {
   const s = {
     app: { minHeight:"100vh", background:T.appBg, color:T.textPrimary, fontFamily:"'IBM Plex Mono','Courier New',monospace", transition:"background 0.3s,color 0.3s" },
     grid: { position:"fixed",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:`linear-gradient(${T.gridColor} 1px,transparent 1px),linear-gradient(90deg,${T.gridColor} 1px,transparent 1px)`,backgroundSize:"40px 40px" },
-    nav: { position:"sticky",top:0,zIndex:100,background:T.navBg,backdropFilter:"blur(12px)",borderBottom:`1px solid ${T.navBorder}`,padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:"54px" },
-    logo: { display:"flex",alignItems:"center",gap:"8px",color:T.accent,fontWeight:"700",fontSize:"13px",letterSpacing:"0.08em",cursor:"pointer" },
-    navLinks: { display:"flex",gap:"4px",alignItems:"center" },
-    navBtn: (a) => ({ padding:"5px 12px",borderRadius:"4px",background:a?T.accentDim:"transparent",border:a?`1px solid ${T.accentBorder}`:"1px solid transparent",color:a?T.accent:T.textMuted,fontSize:"10px",fontFamily:"inherit",fontWeight:"600",letterSpacing:"0.06em",cursor:"pointer" }),
+    nav: { position:"sticky",top:0,zIndex:100,background:T.navBg,backdropFilter:"blur(12px)",borderBottom:`1px solid ${T.navBorder}`,padding:"0 20px",display:"flex",alignItems:"center",justifyContent:"space-between",height:"58px" },
+    logo: { display:"flex",alignItems:"center",gap:"8px",color:T.accent,fontWeight:"700",fontSize:"13px",letterSpacing:"0.08em",cursor:"pointer",flexShrink:0 },
+    navLinks: { display:"flex",gap:"6px",alignItems:"center" },
+    navBtn: (a) => ({ padding:"7px 14px",borderRadius:"6px",background:a?T.accentDim:T.tagBg,border:`1px solid ${a?T.accentBorder:T.cardBorder}`,color:a?T.accent:T.textSecondary,fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.05em",cursor:"pointer",whiteSpace:"nowrap" }),
     main: { position:"relative",zIndex:1,maxWidth:"1000px",margin:"0 auto",padding:"28px 20px" },
     T,
   };
@@ -1922,17 +1941,7 @@ export default function AntiCorrupcaoBR() {
   return (
     <div style={s.app}>
       <div style={s.grid}/>
-      <nav style={s.nav}>
-        <div style={s.logo}><IconShield /> ANTICORRUPÇÃO.BR</div>
-        <div style={s.navLinks}>
-          <button style={s.navBtn(tela==="lista")} onClick={()=>setTela("lista")}>DEPUTADOS</button>
-          <button style={s.navBtn(tela==="senado")} onClick={()=>setTela("senado")}>🏛️ SENADO</button>
-          <button style={s.navBtn(tela==="votacoes")} onClick={()=>setTela("votacoes")}>🗳️ VOTAÇÕES</button>
-          <button style={s.navBtn(tela==="stf")} onClick={()=>setTela("stf")}>⚖️ STF</button>
-          <button style={s.navBtn(tela==="upload")} onClick={()=>setTela("upload")}>UPLOAD DOC</button>
-          <button onClick={()=>setTema(dark?"light":"dark")} style={{ marginLeft:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,borderRadius:"20px",padding:"5px 12px",cursor:"pointer",fontSize:"14px",display:"flex",alignItems:"center",gap:"6px",color:T.textSecondary,fontFamily:"inherit" }}>{dark?"☀️":"🌙"}<span style={{ fontSize:"10px",fontWeight:"700",letterSpacing:"0.06em" }}>{dark?"CLARO":"ESCURO"}</span></button>
-        </div>
-      </nav>
+            <NavBar telaAtual={tela} setTela={setTela} setTema={setTema} tema={tema} s={s}/>
 
       <div style={s.main}>
         <div style={{ marginBottom:"20px" }}>
