@@ -2241,19 +2241,30 @@ function TelaSenado({ s, tema, setTema, setTela }) {
           <h1 style={{margin:0,fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>Senado Federal</h1>
         </div>
 
-        {/* Contadores — igual ao de deputados */}
+        {/* Contadores clicáveis — igual ao de deputados */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"22px"}}>
           {[
-            {label:"TOTAL",      val:senadores.length, cor:T.textSecondary, border:T.cardBorder},
-            {label:"✓ OK",        val:nAtivo,   cor:"#00d464", border:"rgba(0,212,100,0.3)"},
-            {label:"△ ALERTA",    val:nRegular, cor:"#ffd60a", border:"rgba(255,214,10,0.3)"},
-            {label:"● SUSPEITO",  val:nAusente, cor:"#ff4d6d", border:"rgba(255,77,109,0.3)"},
-          ].map((item,i)=>(
-            <div key={i} style={{background:T.cardBg,border:`1px solid ${item.border}`,borderRadius:"10px",padding:"14px",textAlign:"center"}}>
-              <div style={{fontSize:"24px",fontWeight:"800",color:item.cor,lineHeight:1}}>{item.val}</div>
-              <div style={{fontSize:"9px",color:T.textLabel,letterSpacing:"0.1em",marginTop:"6px",fontWeight:"700"}}>{item.label}</div>
-            </div>
-          ))}
+            {label:"TOTAL",      val:senadores.length, cor:T.textSecondary, key:"Todos"},
+            {label:"✓ OK",        val:nAtivo,           cor:"#00d464",        key:"ok"},
+            {label:"△ ALERTA",    val:nRegular,         cor:"#ffd60a",        key:"alerta"},
+            {label:"● SUSPEITO",  val:nAusente,         cor:"#ff4d6d",        key:"suspeito"},
+          ].map((item,i)=>{
+            const ativo = filtClassif === item.key && i > 0;
+            return (
+              <div key={i} onClick={()=>setFiltClassif(filtClassif===item.key&&i>0?"Todos":item.key)}
+                style={{
+                  background: ativo ? `${item.cor}15` : T.cardBg,
+                  border:`1px solid ${ativo ? item.cor+"55" : T.cardBorder}`,
+                  borderTop:`2px solid ${item.cor}`,
+                  borderRadius:"10px",padding:"14px",textAlign:"center",
+                  cursor: i > 0 ? "pointer" : "default",
+                  transition:"all 0.15s",
+                }}>
+                <div style={{fontSize:"24px",fontWeight:"800",color:item.cor,lineHeight:1}}>{item.val}</div>
+                <div style={{fontSize:"9px",color:T.textLabel,letterSpacing:"0.1em",marginTop:"6px",fontWeight:"700"}}>{item.label}</div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Filtros — igual ao de deputados */}
