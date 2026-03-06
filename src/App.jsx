@@ -1495,20 +1495,22 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   const [filtClassif, setFiltClassif] = useState("Todos");
   const [scoresCarregados, setScoresCarregados] = useState(false);
 
-  // Calcula score/classificação de cada senador baseado nos votos dos temas
-  function calcScoreSenador(votos) {
-    const total = TEMAS_SENADO.length;
-    if (total === 0) return { classificacao:"ok", score:0, motivo:"Sem dados" };
-    const sim   = Object.values(votos).filter(v=>v?.toLowerCase()==="sim").length;
-    const nao   = Object.values(votos).filter(v=>v?.toLowerCase()==="não"||v?.toLowerCase()==="nao").length;
-    const secr  = Object.values(votos).filter(v=>v?.toLowerCase()==="votou").length;
-    const aus   = Object.values(votos).filter(v=>v==="Ausente").length;
-    const presenca = Math.round(((sim+nao+secr)/total)*100);
-    if (aus > total * 0.6)
-      return { classificacao:"suspeito", score: Math.max(10,100-presenca), motivo:`Alta ausência: ${aus} faltas em ${total} votações` };
-    if (aus > total * 0.35)
-      return { classificacao:"alerta", score: Math.max(20,70-presenca), motivo:`Ausência moderada: ${aus} faltas em ${total} votações` };
-    return { classificacao:"ok", score: presenca, motivo:`Presença em ${sim+nao+secr} de ${total} votações (${presenca}%)` };
+  // Calcula score/classificação de cada senador baseado nos GASTOS (igual ao deputado)
+  function calcScoreSenador(totalGasto, numTransacoes, numFornecedores) {
+    // Thresholds calibrados com dados reais de 2024 (média: R$ 371k, mediana: R$ 421k, max: R$ 583k)
+    if (totalGasto === 0 && numTransacoes === 0)
+      return { classificacao:"ok", score:5, motivo:"Sem despesas registradas" };
+    // Suspeito: acima de R$ 480k (~top 15%) ou concentração extrema
+    if (totalGasto > 480000 || (numFornecedores > 0 && numFornecedores < 3 && numTransacoes > 20))
+      return { classificacao:"suspeito", score: Math.min(95, 60 + Math.floor(totalGasto/10000)),
+        motivo: totalGasto > 480000 ? `Gastos acima da média: R$ ${(totalGasto/1000).toFixed(0)} mil` : "Alta concentração em poucos fornecedores" };
+    // Alerta: R$ 350k–480k
+    if (totalGasto > 350000)
+      return { classificacao:"alerta", score: Math.min(64, 35 + Math.floor(totalGasto/15000)),
+        motivo: `Gastos elevados, requer atenção: R$ ${(totalGasto/1000).toFixed(0)} mil` };
+    // OK
+    return { classificacao:"ok", score: Math.max(5, Math.floor(totalGasto/10000)),
+      motivo: `Gastos dentro do padrão: R$ ${(totalGasto/1000).toFixed(0)} mil` };
   }
 
   useEffect(() => {
@@ -1541,11 +1543,12 @@ function TelaSenado({ s, tema, setTema, setTela }) {
     })();
   }, []);
 
-  // Carrega votos de TODOS os senadores em background para calcular scores
+  // Carrega GASTOS de todos os senadores em background (lotes de 15, igual ao deputado)
   useEffect(() => {
-    if (carregando || senadores.length === 0 || scoresCarregados) return;
+    if (carregando || senadores.length === 0 || scoresCarregados || Object.keys(codanteMap).length === 0) return;
     (async () => {
-      // Carrega todos os períodos uma vez
+      const ANO = 2024;
+      // Também carrega votos (em paralelo) para guardar no votosCache
       const periodosUnicos = [...new Set(TEMAS_SENADO.map(t=>t.periodo))];
       const dadosPeriodos = {};
       await Promise.allSettled(periodosUnicos.map(async (periodo) => {
@@ -1555,23 +1558,53 @@ function TelaSenado({ s, tema, setTema, setTela }) {
           dadosPeriodos[periodo] = d?.ListaVotacoes?.Votacoes?.Votacao || [];
         } catch { dadosPeriodos[periodo] = []; }
       }));
-      // Para cada senador, calcula seus votos
-      setSenadores(prev => prev.map(sen => {
-        const votos = {};
-        TEMAS_SENADO.forEach(tema => {
-          const vs = dadosPeriodos[tema.periodo] || [];
-          const vot = vs.find(v => String(v.CodigoSessaoVotacao) === String(tema.sessaoId));
-          if (vot) {
-            const vp = (vot.Votos?.VotoParlamentar||[]).find(v=>v.CodigoParlamentar===sen.id);
-            votos[tema.id] = vp?.Voto || "Ausente";
-          } else votos[tema.id] = "Ausente";
-        });
-        const cl = calcScoreSenador(votos);
-        return { ...sen, ...cl, votosCache: votos };
-      }));
+
+      // Carrega despesas em lotes de 15
+      const LOTE = 15;
+      for (let i = 0; i < senadores.length; i += LOTE) {
+        const lote = senadores.slice(i, i + LOTE);
+        const resultados = await Promise.allSettled(lote.map(async sen => {
+          const codanteId = codanteMap[sen.nome?.toLowerCase().trim()];
+          if (!codanteId) return { id: sen.id, total: 0, count: 0, fornecedores: 0 };
+          try {
+            const r = await fetch(`${CODANTE_API}/senators/${codanteId}/expenses?year=${ANO}&page=1`, {headers:{"Accept":"application/json"}});
+            const d = await r.json();
+            const meta = d.meta || {};
+            // Conta fornecedores únicos nas primeiras 100 despesas
+            const fornSet = new Set((d.data||[]).map(g=>g.supplier_document).filter(Boolean));
+            return {
+              id: sen.id,
+              total: parseFloat(meta.expenses_sum || 0),
+              count: parseInt(meta.expenses_count || 0),
+              fornecedores: fornSet.size,
+            };
+          } catch { return { id: sen.id, total: 0, count: 0, fornecedores: 0 }; }
+        }));
+
+        // Atualiza senadores do lote com score baseado em gastos
+        setSenadores(prev => prev.map(sen => {
+          const idx = lote.findIndex(l => l.id === sen.id);
+          if (idx === -1) return sen;
+          const res = resultados[idx];
+          if (res.status !== "fulfilled") return { ...sen, classificacao:"ok", score:5, motivo:"Erro ao carregar" };
+          const { total, count, fornecedores } = res.value;
+          // Calcula votos cache
+          const votos = {};
+          TEMAS_SENADO.forEach(tema => {
+            const vs = dadosPeriodos[tema.periodo] || [];
+            const vot = vs.find(v => String(v.CodigoSessaoVotacao) === String(tema.sessaoId));
+            if (vot) {
+              const vp = (vot.Votos?.VotoParlamentar||[]).find(v=>v.CodigoParlamentar===sen.id);
+              votos[tema.id] = vp?.Voto || "Ausente";
+            } else votos[tema.id] = "Ausente";
+          });
+          const cl = calcScoreSenador(total, count, fornecedores);
+          return { ...sen, ...cl, votosCache: votos, totalGastoCeap: total };
+        }));
+      }
       setScoresCarregados(true);
     })();
-  }, [carregando, senadores.length, scoresCarregados]);
+  }, [carregando, senadores.length, scoresCarregados, Object.keys(codanteMap).length]);
 
   const carregarVotacaoTema = async (tema) => {
     setAbaVot(tema); setVotosVot([]); setCarregVot(true);
@@ -1649,10 +1682,10 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   const ufs = ["Todos", ...new Set(senadores.map(s => s.uf).filter(Boolean))].sort();
 
   const COR_SEN = {
-    ok:      { dot:"#00d464", bg:"rgba(0,212,100,0.08)",  border:"rgba(0,212,100,0.25)",  text:"#00d464",  label:"ATIVO"   },
-    alerta:  { dot:"#ffd60a", bg:"rgba(255,214,10,0.08)", border:"rgba(255,214,10,0.25)", text:"#ffd60a",  label:"REGULAR" },
-    suspeito:{ dot:"#ff4d6d", bg:"rgba(255,77,109,0.08)", border:"rgba(255,77,109,0.25)", text:"#ff4d6d",  label:"AUSENTE" },
-    loading: { dot:"#555",    bg:"transparent",           border:"rgba(255,255,255,0.06)",text:"#555",     label:"..."     },
+    ok:      { dot:"#00d464", bg:"rgba(0,212,100,0.08)",  border:"rgba(0,212,100,0.25)",  text:"#00d464",  label:"✓ OK"       },
+    alerta:  { dot:"#ffd60a", bg:"rgba(255,214,10,0.08)", border:"rgba(255,214,10,0.25)", text:"#ffd60a",  label:"△ ALERTA"   },
+    suspeito:{ dot:"#ff4d6d", bg:"rgba(255,77,109,0.08)", border:"rgba(255,77,109,0.25)", text:"#ff4d6d",  label:"● SUSPEITO" },
+    loading: { dot:"#555",    bg:"transparent",           border:"rgba(255,255,255,0.06)",text:"#888",     label:"..."        },
   };
 
   const senadoresFiltrados = senadores
@@ -2211,10 +2244,10 @@ function TelaSenado({ s, tema, setTema, setTela }) {
         {/* Contadores — igual ao de deputados */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"22px"}}>
           {[
-            {label:"TOTAL",   val:senadores.length, cor:T.textSecondary, border:T.cardBorder},
-            {label:"✓ ATIVO", val:nAtivo,   cor:"#00d464", border:"rgba(0,212,100,0.3)"},
-            {label:"△ REGULAR",val:nRegular, cor:"#ffd60a", border:"rgba(255,214,10,0.3)"},
-            {label:"● AUSENTE",val:nAusente, cor:"#ff4d6d", border:"rgba(255,77,109,0.3)"},
+            {label:"TOTAL",      val:senadores.length, cor:T.textSecondary, border:T.cardBorder},
+            {label:"✓ OK",        val:nAtivo,   cor:"#00d464", border:"rgba(0,212,100,0.3)"},
+            {label:"△ ALERTA",    val:nRegular, cor:"#ffd60a", border:"rgba(255,214,10,0.3)"},
+            {label:"● SUSPEITO",  val:nAusente, cor:"#ff4d6d", border:"rgba(255,77,109,0.3)"},
           ].map((item,i)=>(
             <div key={i} style={{background:T.cardBg,border:`1px solid ${item.border}`,borderRadius:"10px",padding:"14px",textAlign:"center"}}>
               <div style={{fontSize:"24px",fontWeight:"800",color:item.cor,lineHeight:1}}>{item.val}</div>
@@ -2232,7 +2265,7 @@ function TelaSenado({ s, tema, setTema, setTela }) {
             </div>
             <select value={filtClassif} onChange={e=>setFiltClassif(e.target.value)}
               style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
-              {["Todos","ok","alerta","suspeito"].map(v=><option key={v} value={v} style={{background:T.selectBg}}>{v==="Todos"?"Todos":v==="ok"?"✓ Ativo":v==="alerta"?"△ Regular":"● Ausente"}</option>)}
+              {["Todos","ok","alerta","suspeito"].map(v=><option key={v} value={v} style={{background:T.selectBg}}>{v==="Todos"?"Todos":v==="ok"?"✓ OK":v==="alerta"?"△ Alerta":"● Suspeito"}</option>)}
             </select>
           </div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
@@ -2283,9 +2316,11 @@ function TelaSenado({ s, tema, setTema, setTela }) {
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:"14px",fontWeight:"700",color:T.textPrimary,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{sen.nome}</div>
                     <div style={{fontSize:"11px",color:T.textSecondary,marginBottom:"4px"}}>{sen.partido} · {sen.uf}</div>
-                    {sen.motivo && <div style={{fontSize:"11px",color:c.text,fontWeight:"600",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                      {sen.classificacao==="loading"?"⏳ Calculando...":sen.motivo}
-                    </div>}
+                    {sen.classificacao==="loading"
+                    ? <div style={{fontSize:"11px",color:"#888",fontWeight:"600"}}>⏳ Calculando gastos...</div>
+                    : sen.motivo
+                      ? <div style={{fontSize:"11px",color:c.text,fontWeight:"600",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{sen.motivo}</div>
+                      : null}
                   </div>
                   {/* Badge + Score */}
                   <div style={{flexShrink:0,textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"4px"}}>
