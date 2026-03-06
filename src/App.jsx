@@ -1694,21 +1694,26 @@ function TelaSenado({ s, tema, setTema, setTela }) {
           </div>
           {carregVot && <div style={{textAlign:"center",padding:"60px",color:T.textSecondary}}>⏳ Carregando votos...</div>}
           {!carregVot && (
-            <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:"6px"}}>
               {votosFiltrados.map((v,i)=>{
-                const cor=corVoto(v.Voto); const bg=bgVoto(v.Voto);
+                const cor=corVoto(v.Voto); const em=emVoto(v.Voto);
+                const senObj = senadores.find(s=>s.id===v.CodigoParlamentar)||{id:v.CodigoParlamentar,nome:v.NomeParlamentar,partido:v.SiglaPartido,uf:v.SiglaUF||v.SiglaUf,foto:v.Foto};
                 return (
-                  <div key={i} onClick={()=>carregarVotosSenador(senadores.find(s=>s.id===v.CodigoParlamentar)||{id:v.CodigoParlamentar,nome:v.NomeParlamentar,partido:v.SiglaPartido,uf:v.SiglaUF,foto:v.Foto})}
-                    style={{display:"flex",alignItems:"center",gap:"12px",background:bg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"10px 14px",cursor:"pointer"}}>
-                    <span style={{fontSize:"18px",flexShrink:0}}>{emVoto(v.Voto)}</span>
-                    <img src={v.Foto} alt="" style={{width:"32px",height:"32px",borderRadius:"50%",objectFit:"cover",border:`2px solid ${cor}`,flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>
+                  <div key={i} onClick={()=>carregarVotosSenador(senObj)}
+                    style={{background:T.cardBg,border:`1px solid ${cor}33`,borderLeft:`3px solid ${cor}`,borderRadius:"8px",padding:"10px 12px",display:"flex",gap:"10px",alignItems:"center",cursor:"pointer",transition:"background 0.15s"}}
+                    onMouseEnter={e=>e.currentTarget.style.background=`${cor}11`}
+                    onMouseLeave={e=>e.currentTarget.style.background=T.cardBg}>
+                    <img src={v.Foto||`https://ui-avatars.com/api/?name=${encodeURIComponent(v.NomeParlamentar)}&background=1a1f2e&color=a78bfa&size=60`}
+                      alt="" style={{width:"36px",height:"36px",borderRadius:"50%",objectFit:"cover",border:`2px solid ${cor}44`,flexShrink:0}}
+                      onError={e=>{e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(v.NomeParlamentar)}&background=1a1f2e&color=a78bfa&size=60`}}/>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary}}>{v.NomeParlamentar}</div>
-                      <div style={{fontSize:"10px",color:T.textSecondary}}>{v.SiglaPartido} · {v.SiglaUF}</div>
+                      <div style={{fontSize:"11px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v.NomeParlamentar}</div>
+                      <div style={{fontSize:"9px",color:T.textMuted}}>{v.SiglaPartido} · {v.SiglaUF||v.SiglaUf}</div>
                     </div>
-                    <span style={{fontSize:"11px",fontWeight:"800",color:cor,flexShrink:0,padding:"3px 10px",borderRadius:"4px",background:`${cor}22`,border:`1px solid ${cor}44`}}>
-                      {v.Voto?.toUpperCase()}
-                    </span>
+                    <div style={{textAlign:"center",flexShrink:0}}>
+                      <div style={{fontSize:"16px"}}>{em}</div>
+                      <div style={{fontSize:"8px",fontWeight:"800",color:cor}}>{v.Voto||"—"}</div>
+                    </div>
                   </div>
                 );
               })}
