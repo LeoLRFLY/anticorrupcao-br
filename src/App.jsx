@@ -435,6 +435,15 @@ function TelaHome({ s, tema, setTema, setTela }) {
               onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.transform="none";}}>
               🏛️ Ver Senadores
             </button>
+            <button onClick={()=>setTela("stf")} style={{
+              padding:"14px 28px",background:"transparent",border:"1px solid rgba(255,214,10,0.35)",
+              borderRadius:"8px",color:"#ffd60a",fontSize:"13px",fontFamily:"inherit",fontWeight:"800",
+              letterSpacing:"0.06em",cursor:"pointer",display:"flex",alignItems:"center",gap:"8px",transition:"all 0.2s",
+            }}
+              onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,214,10,0.08)";e.currentTarget.style.transform="translateY(-2px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.transform="none";}}>
+              ⚖️ Ver STF
+            </button>
           </div>
 
           {/* Números de impacto */}
