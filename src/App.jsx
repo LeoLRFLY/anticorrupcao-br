@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 
 // ── APIs ── v3.0 ─────────────────────────────────────────────────────────────
 const CAMARA_API = "https://dadosabertos.camara.leg.br/api/v2";
+const SENADO_API = "https://legis.senado.leg.br/dadosabertos";
 const TRANSP_KEY = import.meta.env.VITE_TRANSPARENCIA_API_KEY || "";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1506,16 +1507,20 @@ function TelaSenado({ s, tema, setTema, setTela }) {
     setAbaVot(tema); setVotosVot([]); setCarregVot(true);
     setFiltVoto("todos"); setFiltBusca("");
     try {
-      const r = await fetch(`${SENADO_API}/plenario/lista/votacao/${tema.periodo}.json`);
+      const url = `${SENADO_API}/plenario/lista/votacao/${tema.periodo}.json`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const vs = d?.ListaVotacoes?.Votacoes?.Votacao || [];
-      const vot = vs.find(v => v.CodigoSessaoVotacao === tema.sessaoId);
+      // Busca pelo sessaoId — compara como string
+      const vot = vs.find(v => String(v.CodigoSessaoVotacao) === String(tema.sessaoId));
       if (vot) {
-        setVotosVot(vot.Votos?.VotoParlamentar || []);
-        // Atualiza resultado real
-        tema.resultado_real = vot.Votos?.VotoParlamentar || [];
+        const vps = vot.Votos?.VotoParlamentar || [];
+        setVotosVot(vps);
+      } else {
+        console.warn("Sessão não encontrada:", tema.sessaoId, "disponíveis:", vs.map(v=>v.CodigoSessaoVotacao));
       }
-    } catch {}
+    } catch(e) { console.error("Erro carregarVotacaoTema:", e); }
     setCarregVot(false);
   };
 
@@ -1527,7 +1532,7 @@ function TelaSenado({ s, tema, setTema, setTela }) {
         const r = await fetch(`${SENADO_API}/plenario/lista/votacao/${tema.periodo}.json`);
         const d = await r.json();
         const vs = d?.ListaVotacoes?.Votacoes?.Votacao || [];
-        const vot = vs.find(v => v.CodigoSessaoVotacao === tema.sessaoId);
+        const vot = vs.find(v => String(v.CodigoSessaoVotacao) === String(tema.sessaoId));
         if (vot) {
           const vp = (vot.Votos?.VotoParlamentar || []).find(v => v.CodigoParlamentar === sen.id);
           resultado[tema.id] = vp?.Voto || "Ausente";
