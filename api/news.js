@@ -38,7 +38,10 @@ export default async function handler(req) {
       const titulo     = titulo_raw.replace(/ - [^-]+$/, "").trim();
       const link       = get("link");
       const data       = get("pubDate").slice(0, 16);
-      const descricao  = get("description").replace(/<[^>]+>/g, "").slice(0, 180);
+      const descricaoRaw = get("description")
+        .replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&quot;/g,'"')
+        .replace(/<[^>]+>/g, "").trim();
+      const descricao  = descricaoRaw.slice(0, 180);
 
       if (titulo) items.push({ titulo, fonte, link, data, descricao });
     }
