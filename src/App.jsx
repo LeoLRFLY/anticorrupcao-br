@@ -1285,13 +1285,13 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   const [votosSenad, setVotosSenad] = useState({});
   const [carregVotSenad, setCarregVotSenad] = useState(false);
   const [senAba, setSenAba] = useState("votos");
+  const [notSen, setNotSen]   = useState([]);
   // Despesas senador (CEAP via Codante)
   const [despSen, setDespSen] = useState([]);
   const [despSenMeta, setDespSenMeta] = useState(null);
   const [carregDespSen, setCarregDespSen] = useState(false);
   const [anoDespSen, setAnoDespSen] = useState(2025);
   const [fornSenExp, setFornSenExp] = useState(null);
-  const [noticiasSen, setNoticiasSen] = useState([]);
   const [carregNotSen, setCarregNotSen] = useState(false);
   // Mapa nome→id do Codante (carregado uma vez)
   const [codanteMap, setCodanteMap] = useState({});
@@ -1433,7 +1433,7 @@ function TelaSenado({ s, tema, setTema, setTela }) {
 
   const carregarVotosSenador = async (sen) => {
     setSenadorSel(sen); setVotosSenad({}); setCarregVotSenad(true);
-    setSenAba("votos"); setDespSen([]); setDespSenMeta(null); setFornSenExp(null); setNoticiasSen([]);
+    setSenAba("votos"); setDespSen([]); setDespSenMeta(null); setFornSenExp(null); setNotSen([]); setCarregNotSen(false);
     // Se o senador já tem votosCache (calculado no background), usa direto
     if (sen.votosCache) {
       setVotosSenad(sen.votosCache);
@@ -1605,11 +1605,16 @@ function TelaSenado({ s, tema, setTema, setTela }) {
                 {id:"grafico",  label:"📊 CATEGORIAS"},
                 {id:"noticias", label:"📰 NOTÍCIAS"},
                 {id:"analise",  label:"🤖 IA"},
+                {id:"noticias", label:"📰 NOTÍCIAS"},
               ].map(a=>(
                 <button key={a.id} onClick={()=>{
                   setSenAba(a.id);
                   if((a.id==="despesas"||a.id==="grafico"||a.id==="resumo") && despSen.length===0 && !carregDespSen && temCodante)
                     carregarDespesasSenador(senadorSel, anoDespSen);
+                  if(a.id==="noticias" && notSen.length===0 && !carregNotSen) {
+                    setCarregNotSen(true);
+                    buscarNoticias(senadorSel.nome, "senador").then(r=>{setNotSen(r);setCarregNotSen(false);});
+                  }
                 }} style={{padding:"10px 14px",background:"transparent",border:"none",
                   borderBottom:senAba===a.id?`2px solid ${scoreIA.cor}`:"2px solid transparent",
                   color:senAba===a.id?scoreIA.cor:T.textSecondary,
@@ -1884,15 +1889,15 @@ function TelaSenado({ s, tema, setTema, setTela }) {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
                 <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700"}}>NOTÍCIAS RECENTES · GOOGLE NEWS</div>
                 <button onClick={()=>{
-                  setNoticiasSen([]);setCarregNotSen(true);
-                  buscarNoticias(senadorSel.NomeCompletoParlamentar||senadorSel.nome,"senador").then(r=>{setNoticiasSen(r);setCarregNotSen(false);});
+                  setNotSen([]);setCarregNotSen(true);
+                  buscarNoticias(senadorSel.NomeCompletoParlamentar||senadorSel.nome,"senador").then(r=>{setNotSen(r);setCarregNotSen(false);});
                 }} style={{fontSize:"10px",color:T.accent,background:"transparent",border:`1px solid ${T.accentBorder}`,borderRadius:"6px",padding:"4px 10px",cursor:"pointer",fontFamily:"inherit",fontWeight:"700"}}>
                   ↻ Atualizar
                 </button>
               </div>
               {carregNotSen ? (
                 <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"11px"}}>⏳ Buscando notícias...</div>
-              ) : noticiasSen.length === 0 ? (
+              ) : notSen.length === 0 ? (
                 <div>
                   <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"12px",border:`1px dashed ${T.divider}`,borderRadius:"10px",marginBottom:"12px"}}>
                     Clique em Atualizar para buscar notícias
@@ -1900,7 +1905,7 @@ function TelaSenado({ s, tema, setTema, setTela }) {
                 </div>
               ) : (
                 <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-                  {noticiasSen.map((n,i) => (
+                  {notSen.map((n,i) => (
                     <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
                       <div style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"10px",padding:"14px 16px",transition:"all 0.2s",cursor:"pointer"}}
                         onMouseEnter={e=>{e.currentTarget.style.borderColor=T.accent;e.currentTarget.style.background=T.accentDim;}}
@@ -1980,6 +1985,9 @@ function TelaSenado({ s, tema, setTema, setTela }) {
               </div>
             </div>
           )}
+
+
+
         </div>
       </div>
     );
@@ -2345,7 +2353,10 @@ function TelaSTF({ s, tema, setTema, setTela }) {
   const T = s.T; const dark = tema === "dark";
   const [ministrSel, setMinistrSel] = useState(null);
   const [casoSel, setCasoSel] = useState(null);
-  const [aba, setAba] = useState("ministros"); // ministros | casos
+  const [aba, setAba] = useState("ministros"); // ministros | casos | noticias
+  const [minSel, setMinSel]       = useState(null);
+  const [notSTF, setNotSTF]       = useState([]);
+  const [carregNotSTF, setCarregNotSTF] = useState(false);
   const [filtro, setFiltro] = useState("todos"); // todos | progressista | conservador | lula | bolsonaro
 
   const corVotoSTF = v => {
@@ -2542,7 +2553,11 @@ function TelaSTF({ s, tema, setTema, setTela }) {
         </div>
         {/* Tabs */}
         <div style={{display:"flex",gap:"4px",marginBottom:"20px"}}>
-          {[{id:"ministros",label:"👤 MINISTROS"},{id:"casos",label:"⚖️ CASOS HISTÓRICOS"}].map(t=>(
+          {[
+          {id:"ministros",label:"👤 MINISTROS"},
+          {id:"casos",label:"⚖️ CASOS HISTÓRICOS"},
+          {id:"noticias",label:"📰 NOTÍCIAS"},
+        ].map(t=>(
             <button key={t.id} onClick={()=>setAba(t.id)} style={{
               padding:"7px 16px",borderRadius:"6px",fontFamily:"inherit",fontSize:"11px",fontWeight:"700",cursor:"pointer",
               background:aba===t.id?T.accentDim:T.tagBg,
@@ -2633,6 +2648,46 @@ function TelaSTF({ s, tema, setTema, setTela }) {
               );
             })}
           </div>
+        )}
+
+        {aba === "noticias" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+              <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700"}}>NOTÍCIAS RECENTES · GOOGLE NEWS · STF</div>
+              <button onClick={()=>{setNotSTF([]);setCarregNotSTF(true);buscarNoticias("STF Supremo Tribunal Federal","ministros decisões").then(r=>{setNotSTF(r);setCarregNotSTF(false);})}}
+                style={{fontSize:"10px",padding:"5px 12px",borderRadius:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,color:T.textSecondary,cursor:"pointer",fontFamily:"inherit",fontWeight:"700"}}>
+                🔄 Atualizar
+              </button>
+            </div>
+            {carregNotSTF ? (
+              <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"11px"}}>⏳ Buscando notícias do STF...</div>
+            ) : notSTF.length === 0 ? (
+              <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"11px"}}>
+                <div style={{fontSize:"32px",marginBottom:"12px"}}>⚖️</div>
+                Nenhuma notícia recente encontrada.
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                {notSTF.map((n,i) => (
+                  <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
+                    style={{display:"block",background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"14px 16px",textDecoration:"none",transition:"all 0.15s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor="#ffd60a44";e.currentTarget.style.background="rgba(255,214,10,0.03)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.subCardBorder;e.currentTarget.style.background=T.subCardBg;}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",marginBottom:"6px"}}>
+                      <div style={{fontSize:"13px",fontWeight:"700",color:T.textPrimary,lineHeight:"1.4"}}>{n.titulo}</div>
+                      <span style={{fontSize:"9px",color:"#ffd60a",fontWeight:"700",background:"rgba(255,214,10,0.1)",padding:"2px 8px",borderRadius:"10px",whiteSpace:"nowrap",flexShrink:0}}>{n.fonte}</span>
+                    </div>
+                    {n.descricao && <p style={{margin:"0 0 6px",fontSize:"11px",color:T.textSecondary,lineHeight:"1.6"}}>{n.descricao}</p>}
+                    <div style={{fontSize:"10px",color:T.textMuted}}>📅 {n.data} · Clique para ler →</div>
+                  </a>
+                ))}
+                <div style={{fontSize:"10px",color:T.textMuted,textAlign:"center",padding:"8px"}}>
+                  Fonte: Google News · Notícias sobre o STF e seus ministros
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         )}
       </div>
     </div>

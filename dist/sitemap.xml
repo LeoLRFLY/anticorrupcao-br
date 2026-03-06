@@ -2,26 +2,31 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://anticorrupcao-br.vercel.app/</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://anticorrupcao-br.vercel.app/?tela=lista</loc>
+    <loc>https://anticorrupcao-br.vercel.app/#deputados</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://anticorrupcao-br.vercel.app/?tela=senado</loc>
+    <loc>https://anticorrupcao-br.vercel.app/#senado</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://anticorrupcao-br.vercel.app/?tela=votacoes</loc>
+    <loc>https://anticorrupcao-br.vercel.app/#votacoes</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://anticorrupcao-br.vercel.app/?tela=stf</loc>
+    <loc>https://anticorrupcao-br.vercel.app/#stf</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

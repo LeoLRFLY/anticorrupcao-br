@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
-
 Sitemap: https://anticorrupcao-br.vercel.app/sitemap.xml
+
+# Principais buscadores
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
