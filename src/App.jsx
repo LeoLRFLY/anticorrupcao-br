@@ -267,26 +267,12 @@ function BotaoVoltar({ onClick, label, s }) {
 
 
 
-// ── Notícias via Google News RSS (proxy allorigins) ───────────────────────────
-async function buscarNoticias(nome, cargo) {
-  const query   = encodeURIComponent(`"${nome}"`);
-  const rssUrl  = `https://news.google.com/rss/search?q=${query}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
-  const proxy   = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+// ── Notícias via Vercel Edge Function (/api/news) ─────────────────────────────
+async function buscarNoticias(nome) {
   try {
-    const r = await fetch(proxy);
-    const d = await r.json();
-    const xml = d.contents || "";
-    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1]);
-    return items.slice(0, 8).map(item => {
-      const get = tag => item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`))?.[1]?.trim() || "";
-      const titulo_raw = get("title");
-      const fonte  = get("source") || titulo_raw.match(/ - (.+)$/)?.[1] || "Google News";
-      const titulo = titulo_raw.replace(/ - [^-]+$/, "");
-      const link   = get("link");
-      const data   = get("pubDate").slice(0,16);
-      const desc   = get("description").replace(/<[^>]+>/g,"").slice(0,150);
-      return { titulo, fonte, link, data, descricao: desc };
-    });
+    const r = await fetch(`/api/news?q=${encodeURIComponent(nome)}`);
+    if (!r.ok) return [];
+    return await r.json();
   } catch { return []; }
 }
 
@@ -1821,38 +1807,134 @@ function TelaSenado({ s, tema, setTema, setTela }) {
           )}
 
           {/* ── ABA DESPESAS ── */}
-          {senAba==="despesas" && (
-            <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
-              {carregDespSen&&<div style={{textAlign:"center",padding:"60px",color:T.textSecondary}}><div style={{fontSize:"28px",marginBottom:"12px"}}>⏳</div>Carregando despesas...</div>}
-              {!carregDespSen&&despSen.length===0&&<div style={{color:T.textMuted,fontSize:"13px",textAlign:"center",padding:"60px",border:"1px dashed rgba(255,255,255,0.1)",borderRadius:"12px"}}>
-                {temCodante?"Nenhuma despesa em "+anoDespSen:"Dados não disponíveis para este senador"}
-              </div>}
-              {despSen.map((d,i)=>{
-                const val=parseFloat(d.amount||0); const cvp=corValor(val);
-                const data=d.date?.substring(0,10)||""; const [a2,m2,d2]=data.split("-");
-                const dataFmt=data?`${d2}/${m2}/${a2}`:"—";
-                const icone=d.expense_category?.includes("Passagem")||d.expense_category?.includes("Locomoção")?"✈️":
-                  d.expense_category?.includes("Aluguel")?"🏢":d.expense_category?.includes("Consultoria")?"🤝":"💳";
-                return (
-                  <div key={i} style={{display:"flex",gap:"14px",alignItems:"center",background:T.cardBg,borderLeft:`3px solid ${cvp.cor}`,border:`1px solid ${T.cardBorder}`,borderRadius:"8px",padding:"14px 16px"}}>
-                    <div style={{fontSize:"22px",flexShrink:0,width:"32px",textAlign:"center"}}>{icone}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:"13px",fontWeight:"700",color:T.textPrimary,marginBottom:"4px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{d.supplier||"Fornecedor não informado"}</div>
-                      <div style={{display:"flex",gap:"6px",flexWrap:"wrap",alignItems:"center"}}>
-                        <span style={{fontSize:"10px",color:T.tagText,background:T.tagBg,padding:"2px 8px",borderRadius:"3px",fontWeight:"600"}}>{d.expense_category?.substring(0,45)||"Sem categoria"}</span>
-                        {d.supplier_document&&<span style={{fontSize:"10px",color:T.textMuted,fontFamily:"monospace"}}>CNPJ: {d.supplier_document}</span>}
-                      </div>
-                    </div>
-                    <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:"15px",fontWeight:"800",color:cvp.cor}}>{fmtBRL(val)}</div>
-                      <div style={{fontSize:"10px",color:"#777",marginTop:"4px"}}>{dataFmt}</div>
-                    </div>
+          {senAba==="despesas" && (() => {
+            const [filtCatSen, setFiltCatSen] = React.useState("Todas");
+            const [filtBuscaSen, setFiltBuscaSen] = React.useState("");
+            const [despSenExp, setDespSenExp] = React.useState(null);
+            const catsSen = ["Todas", ...Array.from(new Set(despSen.map(d=>d.expense_category||"Outros"))).sort()];
+            const despSenFilt = despSen.filter(d=>{
+              const catOk = filtCatSen==="Todas" || d.expense_category===filtCatSen;
+              const buscaOk = !filtBuscaSen || (d.supplier||"").toLowerCase().includes(filtBuscaSen.toLowerCase());
+              return catOk && buscaOk;
+            });
+            const totalFiltSen = despSenFilt.reduce((a,d)=>a+parseFloat(d.amount||0),0);
+            const alertasSen = despSenFilt.filter(d=>parseFloat(d.amount||0)>20000);
+            return (
+            <div>
+              {/* Totais */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:"8px",marginBottom:"12px"}}>
+                {[
+                  {label:"Total filtrado",  valor:`R$ ${(totalFiltSen/1000).toFixed(1)}k`, cor:"#00d4aa"},
+                  {label:"Transações",      valor:despSenFilt.length, cor:T.textPrimary},
+                  {label:"Valor médio",     valor:`R$ ${despSenFilt.length?Math.round(totalFiltSen/despSenFilt.length):0}`, cor:"#a78bfa"},
+                  {label:"⚠️ Acima 20k",   valor:alertasSen.length, cor:alertasSen.length>0?"#ff4d6d":"#00d464"},
+                ].map((c,i)=>(
+                  <div key={i} style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"8px",padding:"10px",textAlign:"center"}}>
+                    <div style={{fontSize:"15px",fontWeight:"800",color:c.cor}}>{c.valor}</div>
+                    <div style={{fontSize:"9px",color:T.textMuted,marginTop:"3px",fontWeight:"600"}}>{c.label}</div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
 
+              {/* Filtros */}
+              <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"12px",alignItems:"center"}}>
+                <div style={{display:"flex",alignItems:"center",gap:"6px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",flex:1,minWidth:"140px"}}>
+                  <span>🔍</span>
+                  <input value={filtBuscaSen} onChange={e=>setFiltBuscaSen(e.target.value)} placeholder="Buscar fornecedor..."
+                    style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",width:"100%"}}/>
+                </div>
+                <select value={filtCatSen} onChange={e=>setFiltCatSen(e.target.value)}
+                  style={{background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",color:T.textPrimary,fontSize:"10px",fontFamily:"inherit",cursor:"pointer",maxWidth:"220px"}}>
+                  {catsSen.map(c=><option key={c} value={c}>{c.length>40?c.slice(0,40)+"...":c}</option>)}
+                </select>
+              </div>
+
+              {/* Alertas IA */}
+              {alertasSen.length > 0 && (
+                <div style={{background:"rgba(255,77,109,0.06)",border:"1px solid rgba(255,77,109,0.25)",borderRadius:"8px",padding:"10px 14px",marginBottom:"12px",display:"flex",gap:"10px"}}>
+                  <span style={{fontSize:"18px"}}>🚨</span>
+                  <div>
+                    <div style={{fontSize:"11px",fontWeight:"800",color:"#ff4d6d",marginBottom:"3px"}}>IA: {alertasSen.length} TRANSAÇÃO(ÕES) ACIMA DE R$ 20.000</div>
+                    <div style={{fontSize:"10px",color:T.textSecondary}}>{alertasSen.slice(0,3).map(a=>`${a.supplier||"Fornecedor"} (R$ ${parseFloat(a.amount||0).toLocaleString("pt-BR",{maximumFractionDigits:0})})`).join(" · ")}</div>
+                  </div>
+                </div>
+              )}
+
+              {carregDespSen ? (
+                <div style={{textAlign:"center",padding:"40px",color:T.textMuted}}>⏳ Carregando despesas...</div>
+              ) : despSenFilt.length === 0 ? (
+                <div style={{textAlign:"center",padding:"40px",color:T.textMuted,border:`1px dashed ${T.divider}`,borderRadius:"10px"}}>
+                  {temCodante ? "Sem despesas para os filtros selecionados" : "Dados não disponíveis para este senador"}
+                </div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+                  {despSenFilt.slice(0,150).map((d,i)=>{
+                    const val = parseFloat(d.amount||0);
+                    const isAlerta = val > 20000;
+                    const isExpand = despSenExp === i;
+                    const data = d.date?.slice(0,10)||"";
+                    const icone = d.expense_category?.includes("Passagem")||d.expense_category?.includes("Locomoção")?"✈️":
+                      d.expense_category?.includes("Aluguel")?"🏢":d.expense_category?.includes("Consultoria")?"🤝":"💳";
+                    return (
+                      <div key={i} onClick={()=>setDespSenExp(isExpand?null:i)}
+                        style={{background:T.subCardBg,border:`1px solid ${isAlerta?"rgba(255,77,109,0.3)":T.subCardBorder}`,borderLeft:isAlerta?"3px solid #ff4d6d":undefined,borderRadius:"8px",padding:"10px 12px",cursor:"pointer",transition:"all 0.15s"}}>
+                        <div style={{display:"flex",gap:"10px",alignItems:"center"}}>
+                          <span style={{fontSize:"20px",flexShrink:0}}>{icone}</span>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap"}}>
+                              <span style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary}}>{d.supplier||"Fornecedor não informado"}</span>
+                              {isAlerta && <span style={{fontSize:"8px",padding:"2px 6px",borderRadius:"4px",background:"rgba(255,77,109,0.15)",color:"#ff4d6d",fontWeight:"700"}}>⚠️ ALTO</span>}
+                            </div>
+                            <div style={{fontSize:"10px",color:T.textMuted,marginTop:"2px"}}>{(d.expense_category||"Sem categoria").slice(0,60)}</div>
+                            {d.supplier_document && <div style={{fontSize:"9px",color:T.textMuted,fontFamily:"monospace",marginTop:"1px"}}>CNPJ: {d.supplier_document}</div>}
+                          </div>
+                          <div style={{textAlign:"right",flexShrink:0}}>
+                            <div style={{fontSize:"13px",fontWeight:"800",color:val>20000?"#ff4d6d":val>10000?"#ffc400":"#00d464"}}>{fmtBRL(val)}</div>
+                            <div style={{fontSize:"9px",color:T.textMuted,marginTop:"2px"}}>{data}</div>
+                          </div>
+                          <span style={{color:T.textMuted,fontSize:"12px"}}>{isExpand?"▲":"▼"}</span>
+                        </div>
+
+                        {isExpand && (
+                          <div style={{marginTop:"12px",paddingTop:"12px",borderTop:`1px solid ${T.divider}`,display:"flex",flexDirection:"column",gap:"8px"}} onClick={e=>e.stopPropagation()}>
+                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
+                              {[
+                                {label:"CNPJ/CPF",       valor:d.supplier_document||"Não informado"},
+                                {label:"Data",            valor:data||"—"},
+                                {label:"Categoria",       valor:(d.expense_category||"Não informada").slice(0,50)},
+                                {label:"Valor",           valor:fmtBRL(val)},
+                              ].map((f,j)=>(
+                                <div key={j} style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"6px",padding:"8px 10px"}}>
+                                  <div style={{fontSize:"9px",color:T.textMuted,fontWeight:"600",letterSpacing:"0.06em",marginBottom:"3px"}}>{f.label}</div>
+                                  <div style={{fontSize:"11px",fontWeight:"700",color:T.textPrimary}}>{f.valor}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{background:isAlerta?"rgba(255,77,109,0.06)":"rgba(167,139,250,0.04)",border:`1px solid ${isAlerta?"rgba(255,77,109,0.2)":"rgba(167,139,250,0.15)"}`,borderRadius:"6px",padding:"10px 12px"}}>
+                              <div style={{fontSize:"10px",fontWeight:"800",color:isAlerta?"#ff4d6d":"#a78bfa",marginBottom:"5px"}}>🤖 ANÁLISE IA</div>
+                              <p style={{margin:0,fontSize:"11px",color:T.textSecondary,lineHeight:"1.6"}}>
+                                {isAlerta
+                                  ? `Transação de ${fmtBRL(val)} com ${d.supplier} está acima da média do Senado para esta categoria. Verifique se há justificativa no Portal da Transparência.`
+                                  : `Transação de ${fmtBRL(val)} dentro dos parâmetros normais para "${(d.expense_category||"categoria").slice(0,40)}".`}
+                              </p>
+                            </div>
+                            <a href={`https://www6g.senado.leg.br/transparencia/sen/${senadorSel?.CodigoParlamentar || ""}/verba-gabinete`}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{display:"inline-flex",alignItems:"center",gap:"6px",padding:"8px 14px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:"6px",color:"#a78bfa",fontSize:"11px",fontWeight:"700",textDecoration:"none",width:"fit-content"}}
+                              onClick={e=>e.stopPropagation()}>
+                              📄 Ver no Portal da Transparência do Senado
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {despSenFilt.length > 150 && <div style={{textAlign:"center",fontSize:"10px",color:T.textMuted,padding:"10px"}}>Exibindo 150 de {despSenFilt.length} transações</div>}
+                </div>
+              )}
+            </div>
+            );
+          })()}
           {/* ── ABA GRÁFICO ── */}
           {senAba==="grafico" && (
             <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"22px"}}>
@@ -2870,42 +2952,149 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
         )}
 
         {/* ── ABA DESPESAS ── */}
-        {aba==="despesas" && (
+        {aba==="despesas" && (() => {
+          // ── Filtros locais da aba despesas ──
+          const [filtCat, setFiltCat] = React.useState("Todas");
+          const [filtBuscaDesp, setFiltBuscaDesp] = React.useState("");
+          const [despExpand, setDespExpand] = React.useState(null);
+          const cats = ["Todas", ...Object.keys(categorias).sort((a,b)=>categorias[b]-categorias[a])];
+          const despFilt = despesas.filter(d => {
+            const catOk = filtCat==="Todas" || d.tipoDespesa===filtCat;
+            const buscaOk = !filtBuscaDesp || (d.nomeFornecedor||"").toLowerCase().includes(filtBuscaDesp.toLowerCase()) || (d.tipoDespesa||"").toLowerCase().includes(filtBuscaDesp.toLowerCase());
+            return catOk && buscaOk;
+          });
+          const totalFilt = despFilt.reduce((a,d)=>a+(d.valorLiquido||0),0);
+          const alertas = despFilt.filter(d => d.valorLiquido > 15000);
+          return (
           <div>
-            <div style={{display:"flex",gap:"6px",alignItems:"center",marginBottom:"14px"}}>
-              <span style={{fontSize:"10px",color:T.textMuted,fontWeight:"600",letterSpacing:"0.08em"}}>ANO:</span>
-              {[2023,2024,2025].map(ano => (
-                <button key={ano} onClick={()=>setAnoDespesa(ano)} style={{padding:"4px 12px",border:`1px solid ${anoDespesa===ano?T.accent:T.cardBorder}`,borderRadius:"6px",background:anoDespesa===ano?T.accentDim:"transparent",color:anoDespesa===ano?T.accent:T.textSecondary,fontSize:"11px",fontFamily:"inherit",fontWeight:"700",cursor:"pointer"}}>{ano}</button>
+            {/* Cabeçalho com totais */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:"8px",marginBottom:"14px"}}>
+              {[
+                {label:"Total filtrado",  valor:`R$ ${(totalFilt/1000).toFixed(1)}k`, cor:"#00d4aa"},
+                {label:"Transações",      valor:despFilt.length,                       cor:T.textPrimary},
+                {label:"Valor médio",     valor:`R$ ${despFilt.length?((totalFilt/despFilt.length)/1).toFixed(0):0}`, cor:"#a78bfa"},
+                {label:"⚠️ Acima 15k",  valor:alertas.length,                        cor:alertas.length>0?"#ff4d6d":"#00d464"},
+              ].map((c,i)=>(
+                <div key={i} style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"8px",padding:"10px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:"16px",fontWeight:"800",color:c.cor}}>{c.valor}</div>
+                  <div style={{fontSize:"9px",color:T.textMuted,marginTop:"3px",fontWeight:"600"}}>{c.label}</div>
+                </div>
               ))}
-              <span style={{marginLeft:"auto",fontSize:"10px",color:T.textMuted}}>{despesas.length} transações · R$ {(totalGasto/1000).toFixed(1)}k</span>
             </div>
+
+            {/* Filtros */}
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"12px",alignItems:"center"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"6px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",flex:1,minWidth:"140px"}}>
+                <span style={{fontSize:"11px"}}>🔍</span>
+                <input value={filtBuscaDesp} onChange={e=>setFiltBuscaDesp(e.target.value)} placeholder="Buscar fornecedor..."
+                  style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"11px",fontFamily:"inherit",width:"100%"}}/>
+              </div>
+              <select value={filtCat} onChange={e=>setFiltCat(e.target.value)}
+                style={{background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"6px 10px",color:T.textPrimary,fontSize:"10px",fontFamily:"inherit",cursor:"pointer",maxWidth:"200px"}}>
+                {cats.map(c=><option key={c} value={c}>{c.length>35?c.slice(0,35)+"...":c}</option>)}
+              </select>
+              <div style={{display:"flex",gap:"4px"}}>
+                {[2023,2024,2025].map(ano=>(
+                  <button key={ano} onClick={()=>setAnoDespesa(ano)} style={{padding:"5px 10px",border:`1px solid ${anoDespesa===ano?"#00d4aa":T.cardBorder}`,borderRadius:"6px",background:anoDespesa===ano?"rgba(0,212,170,0.1)":"transparent",color:anoDespesa===ano?"#00d4aa":T.textSecondary,fontSize:"10px",fontFamily:"inherit",fontWeight:"700",cursor:"pointer"}}>{ano}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Alertas IA */}
+            {alertas.length > 0 && (
+              <div style={{background:"rgba(255,77,109,0.06)",border:"1px solid rgba(255,77,109,0.25)",borderRadius:"8px",padding:"10px 14px",marginBottom:"12px",display:"flex",gap:"10px",alignItems:"flex-start"}}>
+                <span style={{fontSize:"18px",flexShrink:0}}>🚨</span>
+                <div>
+                  <div style={{fontSize:"11px",fontWeight:"800",color:"#ff4d6d",marginBottom:"3px"}}>IA DETECTOU {alertas.length} TRANSAÇÃO(ÕES) ACIMA DE R$ 15.000</div>
+                  <div style={{fontSize:"10px",color:T.textSecondary}}>
+                    {alertas.slice(0,3).map((a,i)=>`${a.nomeFornecedor||"Fornecedor"} (R$ ${(a.valorLiquido||0).toLocaleString("pt-BR",{maximumFractionDigits:0})})`).join(" · ")}
+                    {alertas.length > 3 && ` · e mais ${alertas.length-3}...`}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {carregDesp ? (
-              <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"11px"}}>⏳ Carregando...</div>
-            ) : despesas.length === 0 ? (
+              <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"11px"}}>⏳ Carregando despesas...</div>
+            ) : despFilt.length === 0 ? (
               <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"12px",border:`1px dashed ${T.divider}`,borderRadius:"10px"}}>
-                Sem despesas registradas em {anoDespesa}
+                Sem despesas para os filtros selecionados
               </div>
             ) : (
               <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
-                {despesas.slice(0,100).map((d,i) => (
-                  <div key={i} style={{display:"flex",gap:"10px",alignItems:"flex-start",background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"8px",padding:"10px 12px"}}>
-                    <div style={{fontSize:"18px",flexShrink:0}}>{iconeDespesa(d.tipoDespesa)}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:"11px",fontWeight:"700",color:T.textPrimary,marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.nomeFornecedor || "Fornecedor não informado"}</div>
-                      <div style={{fontSize:"10px",color:T.textMuted}}>{d.tipoDespesa}</div>
-                      {d.cnpjCpfFornecedor && <div style={{fontSize:"9px",color:T.textMuted,marginTop:"1px"}}>{d.cnpjCpfFornecedor}</div>}
+                {despFilt.slice(0,150).map((d,i) => {
+                  const isAlerta = d.valorLiquido > 15000;
+                  const isExpand = despExpand === i;
+                  return (
+                    <div key={i}
+                      onClick={()=>setDespExpand(isExpand?null:i)}
+                      style={{background:T.subCardBg,border:`1px solid ${isAlerta?"rgba(255,77,109,0.3)":T.subCardBorder}`,borderRadius:"8px",padding:"10px 12px",cursor:"pointer",transition:"all 0.15s",
+                        borderLeft:isAlerta?"3px solid #ff4d6d":undefined}}>
+                      <div style={{display:"flex",gap:"10px",alignItems:"center"}}>
+                        <div style={{fontSize:"20px",flexShrink:0}}>{iconeDespesa(d.tipoDespesa)}</div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
+                            <span style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary}}>{d.nomeFornecedor||"Fornecedor não informado"}</span>
+                            {isAlerta && <span style={{fontSize:"8px",padding:"2px 6px",borderRadius:"4px",background:"rgba(255,77,109,0.15)",color:"#ff4d6d",fontWeight:"700"}}>⚠️ VALOR ALTO</span>}
+                          </div>
+                          <div style={{fontSize:"10px",color:T.textMuted,marginTop:"2px"}}>{d.tipoDespesa}</div>
+                        </div>
+                        <div style={{textAlign:"right",flexShrink:0}}>
+                          <div style={{fontSize:"13px",fontWeight:"800",color:corValor(d.valorLiquido)}}>R$ {(d.valorLiquido||0).toLocaleString("pt-BR",{maximumFractionDigits:2})}</div>
+                          <div style={{fontSize:"9px",color:T.textMuted}}>{d.dataDocumento?.slice(0,10)}</div>
+                        </div>
+                        <span style={{color:T.textMuted,fontSize:"12px",flexShrink:0}}>{isExpand?"▲":"▼"}</span>
+                      </div>
+
+                      {/* Detalhes expandidos */}
+                      {isExpand && (
+                        <div style={{marginTop:"12px",paddingTop:"12px",borderTop:`1px solid ${T.divider}`,display:"flex",flexDirection:"column",gap:"8px"}} onClick={e=>e.stopPropagation()}>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
+                            {[
+                              {label:"Tipo de documento",valor:d.tipoDocumento||"Não informado"},
+                              {label:"Número doc.",       valor:d.numDocumento||"—"},
+                              {label:"CNPJ/CPF",          valor:d.cnpjCpfFornecedor||"Não informado"},
+                              {label:"Valor bruto",       valor:`R$ ${(d.valorDocumento||0).toLocaleString("pt-BR",{maximumFractionDigits:2})}`},
+                              {label:"Glosa",             valor:`R$ ${(d.valorGlosa||0).toLocaleString("pt-BR",{maximumFractionDigits:2})}`},
+                              {label:"Mês de referência", valor:`${d.mes}/${d.ano}`},
+                            ].map((f,j)=>(
+                              <div key={j} style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"6px",padding:"8px 10px"}}>
+                                <div style={{fontSize:"9px",color:T.textMuted,fontWeight:"600",letterSpacing:"0.06em",marginBottom:"3px"}}>{f.label.toUpperCase()}</div>
+                                <div style={{fontSize:"11px",fontWeight:"700",color:T.textPrimary}}>{f.valor}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Análise IA da transação */}
+                          <div style={{background:isAlerta?"rgba(255,77,109,0.06)":"rgba(0,212,170,0.04)",border:`1px solid ${isAlerta?"rgba(255,77,109,0.2)":"rgba(0,212,170,0.15)"}`,borderRadius:"6px",padding:"10px 12px"}}>
+                            <div style={{fontSize:"10px",fontWeight:"800",color:isAlerta?"#ff4d6d":"#00d4aa",marginBottom:"5px"}}>🤖 ANÁLISE IA</div>
+                            <p style={{margin:0,fontSize:"11px",color:T.textSecondary,lineHeight:"1.6"}}>
+                              {isAlerta
+                                ? `Transação de R$ ${(d.valorLiquido||0).toLocaleString("pt-BR",{maximumFractionDigits:0})} com ${d.nomeFornecedor} está acima da média por categoria. Recomenda-se verificar a nota fiscal e comparar com outros parlamentares da mesma UF.`
+                                : `Transação dentro dos parâmetros normais para a categoria "${d.tipoDespesa}". Valor de R$ ${(d.valorLiquido||0).toLocaleString("pt-BR",{maximumFractionDigits:0})} é compatível com a média desta despesa.`
+                              }
+                            </p>
+                          </div>
+
+                          {/* Botão NF */}
+                          {d.urlDocumento && (
+                            <a href={d.urlDocumento} target="_blank" rel="noopener noreferrer"
+                              style={{display:"inline-flex",alignItems:"center",gap:"6px",padding:"8px 14px",background:"rgba(0,212,170,0.1)",border:"1px solid rgba(0,212,170,0.3)",borderRadius:"6px",color:"#00d4aa",fontSize:"11px",fontWeight:"700",textDecoration:"none",width:"fit-content"}}
+                              onClick={e=>e.stopPropagation()}>
+                              📄 Ver Nota Fiscal / Comprovante oficial
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:"12px",fontWeight:"800",color:corValor(d.valorLiquido)}}>R$ {(d.valorLiquido||0).toLocaleString("pt-BR",{maximumFractionDigits:2})}</div>
-                      <div style={{fontSize:"9px",color:T.textMuted,marginTop:"2px"}}>{d.dataDocumento?.slice(0,10)}</div>
-                    </div>
-                  </div>
-                ))}
-                {despesas.length > 100 && <div style={{textAlign:"center",fontSize:"10px",color:T.textMuted,padding:"10px"}}>Exibindo 100 de {despesas.length} transações</div>}
+                  );
+                })}
+                {despFilt.length > 150 && <div style={{textAlign:"center",fontSize:"10px",color:T.textMuted,padding:"10px"}}>Exibindo 150 de {despFilt.length} transações — use os filtros para refinar</div>}
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ── ABA CATEGORIAS ── */}
         {aba==="grafico" && (
