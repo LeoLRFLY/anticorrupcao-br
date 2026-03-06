@@ -1481,6 +1481,7 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   // Perfil senador
   const [votosSenad, setVotosSenad] = useState({});
   const [carregVotSenad, setCarregVotSenad] = useState(false);
+  const [senAba, setSenAba] = useState("votos");
 
   useEffect(() => {
     (async () => {
@@ -1563,73 +1564,227 @@ function TelaSenado({ s, tema, setTema, setTela }) {
     return true;
   });
 
-  // Tela perfil senador
+  // Tela perfil senador — igual ao deputado
   if (senadorSel) {
-    const sim = Object.values(votosSenad).filter(v => v?.toLowerCase() === "sim").length;
-    const nao = Object.values(votosSenad).filter(v => v?.toLowerCase() === "não" || v?.toLowerCase() === "nao").length;
-    const aus = Object.values(votosSenad).filter(v => v === "Ausente").length;
+    const sim   = Object.values(votosSenad).filter(v => v?.toLowerCase() === "sim").length;
+    const nao   = Object.values(votosSenad).filter(v => v?.toLowerCase() === "não" || v?.toLowerCase() === "nao").length;
+    const secr  = Object.values(votosSenad).filter(v => v?.toLowerCase() === "votou").length;
+    const aus   = Object.values(votosSenad).filter(v => v === "Ausente").length;
+    const total = Object.keys(votosSenad).length;
+
+    // Score IA baseado nos votos (sem despesas — Senado não tem CEAP público fácil)
+    const scoreIA = (() => {
+      if (total === 0) return { score: null, label: "Carregando", cor: "#888", motivo: "" };
+      // Avalia padrão de votos nos temas sensíveis
+      const temas = TEMAS_SENADO;
+      let pontos = 0;
+      temas.forEach(t => {
+        const v = (votosSenad[t.id] || "").toLowerCase();
+        // Temas progressistas: Reforma Tributária, Zanin/Dino são controversos
+        // Avalia pela presença (ausência é negativa)
+        if (v === "sim" || v === "não") pontos += 10; // Votou = presente
+        else if (v === "votou") pontos += 6; // Secreto = presente mas não transparente
+        // Ausência pesa negativamente
+      });
+      const presenca = Math.round((pontos / (temas.length * 10)) * 100);
+      if (presenca >= 80) return { score: presenca, label: "ATIVO", cor: "#00d464", motivo: `Votou em ${sim+nao+secr} de ${total} temas registrados` };
+      if (presenca >= 50) return { score: presenca, label: "REGULAR", cor: "#ffd60a", motivo: `Presença média nas votações — ${aus} ausências` };
+      return { score: presenca, label: "AUSENTE", cor: "#ff4d6d", motivo: `Alta taxa de ausência — ${aus} faltas em ${total} votações` };
+    })();
+
     return (
       <div style={s.app}>
         <div style={s.grid}/>
         <NavBar telaAtual="senado" setTela={(t)=>{setSenadorSel(null);if(t!=="senado")setTela(t);}} setTema={setTema} tema={tema} s={s}/>
         <div style={{...s.main,maxWidth:"800px"}}>
           <BotaoVoltar onClick={()=>setSenadorSel(null)} label="← VOLTAR PARA SENADO" s={s}/>
-          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px",fontSize:"12px"}}>
+          {/* Breadcrumb */}
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px",fontSize:"12px"}}>
             <span onClick={()=>setSenadorSel(null)} style={{color:"#00d4aa",cursor:"pointer",fontWeight:"600"}}>🏛️ Senado</span>
             <span style={{color:T.textMuted}}>›</span>
-            <span style={{color:T.textSecondary,fontWeight:"500"}}>{senadorSel.nome}</span>
+            <span style={{color:T.textSecondary,fontWeight:"500",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{senadorSel.nome}</span>
           </div>
-          {/* Card senador */}
-          <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"22px",marginBottom:"22px",display:"flex",gap:"20px",alignItems:"center"}}>
-            <img src={senadorSel.foto} alt="" style={{width:"76px",height:"76px",borderRadius:"50%",objectFit:"cover",border:"3px solid #00d4aa",flexShrink:0}}
-              onError={e=>{e.target.style.display="none"}}/>
+
+          {/* Header card — igual ao deputado */}
+          <div style={{display:"flex",gap:"20px",alignItems:"center",background:`${scoreIA.cor}15`,border:`1px solid ${scoreIA.cor}44`,borderRadius:"12px",padding:"22px",marginBottom:"22px"}}>
+            <img src={senadorSel.foto||`https://ui-avatars.com/api/?name=${encodeURIComponent(senadorSel.nome)}&background=1a1f2e&color=a78bfa&size=80`}
+              alt="" style={{width:"72px",height:"72px",borderRadius:"50%",objectFit:"cover",border:`3px solid ${scoreIA.cor}`,flexShrink:0}}
+              onError={e=>{e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(senadorSel.nome)}&background=1a1f2e&color=a78bfa&size=80`}}/>
             <div style={{flex:1}}>
-              <h2 style={{margin:"0 0 8px",fontSize:"20px",fontWeight:"800",color:T.textPrimary}}>{senadorSel.nome}</h2>
-              <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+              <h2 style={{margin:0,fontSize:"20px",fontWeight:"800",color:T.textPrimary,letterSpacing:"-0.01em"}}>{senadorSel.nome}</h2>
+              <div style={{display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap"}}>
                 {[senadorSel.partido, senadorSel.uf, "Senador(a) Federal"].map((t,i)=>(
                   <span key={i} style={{fontSize:"11px",padding:"4px 12px",borderRadius:"4px",background:T.tagBg,color:T.tagText,letterSpacing:"0.06em",fontWeight:"700"}}>{t}</span>
                 ))}
               </div>
-              {senadorSel.email && <div style={{fontSize:"11px",color:T.textMuted,marginTop:"8px"}}>✉️ {senadorSel.email}</div>}
+              {scoreIA.motivo && <div style={{marginTop:"10px",fontSize:"12px",color:scoreIA.cor,fontWeight:"600"}}>⚡ {scoreIA.motivo}</div>}
+              {senadorSel.email && <div style={{fontSize:"11px",color:T.textMuted,marginTop:"6px"}}>✉️ {senadorSel.email}</div>}
+            </div>
+            <div style={{textAlign:"center",flexShrink:0}}>
+              <div style={{fontSize:"32px",fontWeight:"800",color:scoreIA.cor,lineHeight:1}}>{scoreIA.score ?? "—"}</div>
+              <div style={{fontSize:"10px",color:T.textSecondary,letterSpacing:"0.08em",marginTop:"4px",fontWeight:"600"}}>SCORE</div>
+              <div style={{fontSize:"11px",fontWeight:"800",color:scoreIA.cor,marginTop:"3px",letterSpacing:"0.06em"}}>{scoreIA.label}</div>
             </div>
           </div>
-          {/* Resumo votos */}
-          <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"12px"}}>🗳️ VOTAÇÕES EM TEMAS SENSÍVEIS</div>
-          {carregVotSenad && <div style={{textAlign:"center",padding:"40px",color:T.textSecondary}}>⏳ Buscando votos...</div>}
-          {!carregVotSenad && (<>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",marginBottom:"16px"}}>
-              {[{l:"SIM",v:sim,cor:"#00d464",bg:"rgba(0,212,100,0.1)",em:"✅"},{l:"NÃO",v:nao,cor:"#ff4d6d",bg:"rgba(255,77,109,0.1)",em:"❌"},{l:"AUSENTE",v:aus,cor:T.textMuted,bg:T.tagBg,em:"⬜"}].map((item,i)=>(
-                <div key={i} style={{background:item.bg,border:`1px solid ${item.cor}33`,borderRadius:"8px",padding:"14px",textAlign:"center"}}>
-                  <div style={{fontSize:"22px",marginBottom:"4px"}}>{item.em}</div>
-                  <div style={{fontSize:"20px",fontWeight:"800",color:item.cor}}>{item.v}</div>
+
+          {/* Abas */}
+          <div style={{display:"flex",gap:"4px",borderBottom:`1px solid ${T.divider}`,marginBottom:"20px"}}>
+            {[
+              {id:"votos",   label:"🗳️ VOTAÇÕES"},
+              {id:"analise", label:"🤖 ANÁLISE IA"},
+            ].map(a=>(
+              <button key={a.id} onClick={()=>setSenAba(a.id)} style={{padding:"10px 16px",background:"transparent",border:"none",
+                borderBottom:senAba===a.id?`2px solid ${scoreIA.cor}`:"2px solid transparent",
+                color:senAba===a.id?scoreIA.cor:T.textSecondary,
+                fontSize:"11px",fontFamily:"inherit",fontWeight:"700",letterSpacing:"0.08em",cursor:"pointer",marginBottom:"-1px"}}>{a.label}</button>
+            ))}
+          </div>
+
+          {carregVotSenad && <div style={{textAlign:"center",padding:"60px",color:T.textSecondary}}><div style={{fontSize:"28px",marginBottom:"12px"}}>⏳</div>Buscando votos...</div>}
+
+          {!carregVotSenad && senAba === "votos" && (<>
+            {/* Cards resumo — igual ao deputado (4 cards) */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px",marginBottom:"16px"}}>
+              {[
+                {l:"Votou SIM",   v:sim,  cor:"#00d464", bg:"rgba(0,212,100,0.1)",  em:"✅"},
+                {l:"Votou NÃO",   v:nao,  cor:"#ff4d6d", bg:"rgba(255,77,109,0.1)", em:"❌"},
+                {l:"Secreto",     v:secr, cor:"#60a5fa", bg:"rgba(96,165,250,0.1)", em:"🔒"},
+                {l:"Ausente",     v:aus,  cor:T.textMuted,bg:T.tagBg,              em:"⬜"},
+              ].map((item,i)=>(
+                <div key={i} style={{background:item.bg,border:`1px solid ${item.cor}33`,borderRadius:"8px",padding:"12px",textAlign:"center"}}>
+                  <div style={{fontSize:"20px",marginBottom:"4px"}}>{item.em}</div>
+                  <div style={{fontSize:"18px",fontWeight:"800",color:item.cor}}>{item.v}</div>
                   <div style={{fontSize:"9px",color:T.textLabel,marginTop:"3px",letterSpacing:"0.06em"}}>{item.l}</div>
                 </div>
               ))}
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+
+            {/* Lista temas — igual ao deputado */}
+            <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
               {TEMAS_SENADO.map(tema=>{
-                const voto = votosSenad[tema.id] || "—";
-                const cor = corVoto(voto); const bg = bgVoto(voto); const em = emVoto(voto);
-                const catCor = tema.categoria==="economia"?"#00d4aa":tema.categoria==="direitos"?"#a78bfa":"#fb923c";
+                const voto = votosSenad[tema.id] || "Ausente";
+                const vl = voto.toLowerCase();
+                const cor = vl==="sim"?"#00d464":vl==="não"||vl==="nao"?"#ff4d6d":vl==="votou"?"#60a5fa":T.textMuted;
+                const bg  = vl==="sim"?"rgba(0,212,100,0.08)":vl==="não"||vl==="nao"?"rgba(255,77,109,0.08)":vl==="votou"?"rgba(96,165,250,0.08)":T.subCardBg;
+                const em  = vl==="sim"?"✅":vl==="não"||vl==="nao"?"❌":vl==="votou"?"🔒":"⬜";
+                const CATS = {economia:"#00d4aa",meioambiente:"#34d399",seguranca:"#fb923c",democracia:"#a78bfa",direitos:"#f472b6",tecnologia:"#60a5fa",costumes:"#fbbf24"};
+                const catCor = CATS[tema.categoria] || "#888";
                 return (
                   <div key={tema.id} style={{background:bg,border:`1px solid ${cor}33`,borderRadius:"10px",padding:"14px 16px",display:"flex",gap:"12px",alignItems:"center"}}>
-                    <div style={{fontSize:"22px",flexShrink:0}}>{tema.emoji}</div>
+                    <div style={{fontSize:"24px",flexShrink:0}}>{tema.emoji}</div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px",flexWrap:"wrap"}}>
-                        <span style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary}}>{tema.titulo}</span>
-                        <span style={{fontSize:"9px",color:catCor,background:`${catCor}22`,padding:"1px 7px",borderRadius:"10px",fontWeight:"700"}}>{tema.categoria.toUpperCase()}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"3px",flexWrap:"wrap"}}>
+                        <span style={{fontSize:"13px",fontWeight:"700",color:T.textPrimary}}>{tema.titulo}</span>
+                        <span style={{fontSize:"9px",color:catCor,background:`${catCor}22`,padding:"1px 7px",borderRadius:"10px",fontWeight:"700",letterSpacing:"0.05em"}}>
+                          {tema.categoria.toUpperCase()}
+                        </span>
                       </div>
                       <div style={{fontSize:"10px",color:T.textSecondary}}>{tema.subtitulo} · {tema.data}</div>
+                      <div style={{fontSize:"10px",color:T.textMuted,marginTop:"3px",lineHeight:"1.5"}}>{tema.descricao}</div>
+                      {/* Placar geral */}
+                      {tema.resultado.sim > 0 && (
+                        <div style={{display:"flex",gap:"10px",marginTop:"6px",fontSize:"9px",flexWrap:"wrap"}}>
+                          <span style={{color:"#00d464",fontWeight:"700"}}>✅ {tema.resultado.sim} SIM</span>
+                          <span style={{color:"#ff4d6d",fontWeight:"700"}}>❌ {tema.resultado.nao} NÃO</span>
+                          {tema.resultado.abstencao>0&&<span style={{color:"#ffd60a",fontWeight:"700"}}>🟡 {tema.resultado.abstencao}</span>}
+                          <span style={{color:T.textMuted}}>— placar geral do Senado</span>
+                        </div>
+                      )}
+                      {vl === "votou" && (
+                        <div style={{fontSize:"9px",color:"#60a5fa",marginTop:"4px",fontStyle:"italic"}}>
+                          🔒 Votação secreta — confirmou presença mas voto não é público
+                        </div>
+                      )}
                     </div>
                     <div style={{flexShrink:0,textAlign:"center"}}>
-                      <div style={{fontSize:"20px"}}>{em}</div>
-                      <div style={{fontSize:"10px",fontWeight:"800",color:cor,marginTop:"2px"}}>{voto.toUpperCase()}</div>
+                      <div style={{fontSize:"22px"}}>{em}</div>
+                      <div style={{fontSize:"10px",fontWeight:"800",color:cor,marginTop:"3px",letterSpacing:"0.04em"}}>
+                        {vl==="votou"?"SECRETO":voto.toUpperCase()}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
           </>)}
+
+          {!carregVotSenad && senAba === "analise" && (
+            <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+              {/* Análise textual IA */}
+              <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"20px"}}>
+                <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",marginBottom:"16px",fontWeight:"700"}}>🤖 ANÁLISE DA IA — O QUE ENCONTRAMOS</div>
+                <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                  {[
+                    total === 0 ? null :
+                    sim + nao + secr === 0 ? {
+                      nivel:"critico", icone:"🚨", titulo:"Ausência total nas votações",
+                      texto:`${senadorSel.nome} não registrou voto em nenhum dos ${total} temas sensíveis monitorados. Isso pode indicar ausência sistemática ou períodos de licença.`
+                    } :
+                    aus / total > 0.5 ? {
+                      nivel:"atencao", icone:"⚠️", titulo:"Alta taxa de ausência",
+                      texto:`O senador esteve ausente em ${aus} de ${total} votações monitoradas (${Math.round(aus/total*100)}%). A ausência frequente nas votações nominais é uma forma de se isentar de posicionamentos públicos.`
+                    } : {
+                      nivel:"ok", icone:"✅", titulo:"Participação regular nas votações",
+                      texto:`${senadorSel.nome} participou de ${sim+nao+secr} de ${total} votações registradas (${Math.round((sim+nao+secr)/total*100)}% de presença). A participação ativa nas votações é sinal de engajamento legislativo.`
+                    },
+                    secr > 0 ? {
+                      nivel:"atencao", icone:"🔒", titulo:`${secr} voto${secr>1?"s":""} secreto${secr>1?"s":""}`,
+                      texto:`Em votações de nomeações (ministros STF, presidente do Banco Central), o voto é secreto. O senador participou dessas votações mas seu posicionamento individual não é público. São elas: ${TEMAS_SENADO.filter(t=>votosSenad[t.id]?.toLowerCase()==="votou").map(t=>t.titulo.split("—")[0].trim()).join(", ")}.`
+                    } : null,
+                    sim > nao ? {
+                      nivel:"info", icone:"📊", titulo:"Perfil de votação: maioria SIM",
+                      texto:`Votou SIM em ${sim} e NÃO em ${nao} dos temas registrados. Tendência a aprovar a pauta monitorada.`
+                    } : nao > sim ? {
+                      nivel:"info", icone:"📊", titulo:"Perfil de votação: maioria NÃO",
+                      texto:`Votou NÃO em ${nao} e SIM em ${sim} dos temas registrados. Tendência a rejeitar a pauta monitorada.`
+                    } : null,
+                    {
+                      nivel:"info", icone:"ℹ️", titulo:"Sobre os dados do Senado",
+                      texto:"O Senado Federal não disponibiliza dados de despesas individuais por senador via API pública aberta (como a CEAP dos deputados). Por isso, a análise foca nos registros de votações nominais disponíveis na API oficial do Senado (legis.senado.leg.br)."
+                    }
+                  ].filter(Boolean).map((a,i)=>{
+                    const cores = {
+                      critico:{bg:"rgba(255,77,109,0.08)",border:"rgba(255,77,109,0.25)",text:"#ff4d6d"},
+                      atencao:{bg:"rgba(255,214,10,0.08)", border:"rgba(255,214,10,0.25)", text:"#ffd60a"},
+                      info:   {bg:"rgba(0,212,170,0.06)",  border:"rgba(0,212,170,0.2)",   text:"#00d4aa"},
+                      ok:     {bg:"rgba(0,212,100,0.06)",  border:"rgba(0,212,100,0.2)",   text:"#00d464"},
+                    };
+                    const cor = cores[a.nivel]||cores.info;
+                    return (
+                      <div key={i} style={{background:cor.bg,border:`1px solid ${cor.border}`,borderRadius:"8px",padding:"14px 16px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"6px"}}>
+                          <span style={{fontSize:"18px"}}>{a.icone}</span>
+                          <span style={{fontSize:"13px",fontWeight:"800",color:cor.text}}>{a.titulo}</span>
+                        </div>
+                        <p style={{margin:0,fontSize:"12px",color:"#ccc",lineHeight:"1.7"}}>{a.texto}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Grid de presença visual */}
+              <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"20px"}}>
+                <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",marginBottom:"14px",fontWeight:"700"}}>📊 PAINEL DE PRESENÇA NAS VOTAÇÕES</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"8px"}}>
+                  {TEMAS_SENADO.map(t=>{
+                    const v=(votosSenad[t.id]||"Ausente").toLowerCase();
+                    const cor=v==="sim"?"#00d464":v==="não"||v==="nao"?"#ff4d6d":v==="votou"?"#60a5fa":"#444";
+                    const em=v==="sim"?"✅":v==="não"||v==="nao"?"❌":v==="votou"?"🔒":"⬜";
+                    return (
+                      <div key={t.id} style={{background:`${cor}12`,border:`1px solid ${cor}33`,borderRadius:"8px",padding:"10px 12px",display:"flex",alignItems:"center",gap:"8px"}}>
+                        <span style={{fontSize:"16px",flexShrink:0}}>{em}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:"10px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.titulo.split("—")[0].trim()}</div>
+                          <div style={{fontSize:"9px",color:cor,fontWeight:"700",marginTop:"2px"}}>{v==="votou"?"SECRETO":v.toUpperCase()||"AUSENTE"}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
