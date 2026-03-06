@@ -1295,6 +1295,11 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   const [codanteMap, setCodanteMap] = useState({});
   const [filtOrdem, setFiltOrdem] = useState("A-Z");
   const [filtClassif, setFiltClassif] = useState("Todos");
+  // hooks do perfil senador (precisam ficar fora do if para respeitar regras dos hooks)
+  const [secaoSen, setSSecaoSen]       = useState(null);
+  const [filtCatSen2, setFiltCatSen2]  = useState("Todas");
+  const [filtBuscaSen2, setFiltBuscaSen2] = useState("");
+  const [despSenExp2, setDespSenExp2]  = useState(null);
   const [scoresCarregados, setScoresCarregados] = useState(false);
 
   // Calcula score/classificação de cada senador baseado nos GASTOS (igual ao deputado)
@@ -1529,10 +1534,7 @@ function TelaSenado({ s, tema, setTema, setTela }) {
     const temCodante   = !!codanteMap[senadorSel.nome?.toLowerCase().trim()];
     const corSen       = senadorSel.classificacao==="suspeito"?"#ff2d55":senadorSel.classificacao==="alerta"?"#ffc400":"#00d464";
 
-    const [secaoSen, setSSecaoSen]     = React.useState(null);
-    const [filtCatSen2, setFiltCatSen2]   = React.useState("Todas");
-    const [filtBuscaSen2, setFiltBuscaSen2] = React.useState("");
-    const [despSenExp2, setDespSenExp2]   = React.useState(null);
+
 
     const catsSen2 = ["Todas", ...Array.from(new Set(despSen.map(d=>d.expense_category||"Outros"))).sort()];
     const despSenFilt2 = despSen.filter(d => {
@@ -1970,6 +1972,7 @@ function TelaSTF({ s, tema, setTema, setTela }) {
   const [minSel, setMinSel]       = useState(null);
   const [notSTF, setNotSTF]       = useState([]);
   const [carregNotSTF, setCarregNotSTF] = useState(false);
+  const [secaoSTF, setSecaoSTF] = useState(null);
   const [filtro, setFiltro] = useState("todos"); // todos | progressista | conservador | lula | bolsonaro
 
   const corVotoSTF = v => {
@@ -2004,7 +2007,7 @@ function TelaSTF({ s, tema, setTema, setTela }) {
   if (ministrSel) {
     const m = ministrSel;
     const anosRestantes = m.aposentadoria - new Date().getFullYear();
-    const [secaoSTF, setSecaoSTF] = React.useState(null);
+
     const votosSTFArr = m.casosDestaque ? [] : [];
 
     return (
