@@ -1482,6 +1482,25 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   const [votosSenad, setVotosSenad] = useState({});
   const [carregVotSenad, setCarregVotSenad] = useState(false);
   const [senAba, setSenAba] = useState("votos");
+  const [filtOrdem, setFiltOrdem] = useState("A-Z");
+  const [filtClassif, setFiltClassif] = useState("Todos");
+  const [scoresCarregados, setScoresCarregados] = useState(false);
+
+  // Calcula score/classificação de cada senador baseado nos votos dos temas
+  function calcScoreSenador(votos) {
+    const total = TEMAS_SENADO.length;
+    if (total === 0) return { classificacao:"ok", score:0, motivo:"Sem dados" };
+    const sim   = Object.values(votos).filter(v=>v?.toLowerCase()==="sim").length;
+    const nao   = Object.values(votos).filter(v=>v?.toLowerCase()==="não"||v?.toLowerCase()==="nao").length;
+    const secr  = Object.values(votos).filter(v=>v?.toLowerCase()==="votou").length;
+    const aus   = Object.values(votos).filter(v=>v==="Ausente").length;
+    const presenca = Math.round(((sim+nao+secr)/total)*100);
+    if (aus > total * 0.6)
+      return { classificacao:"suspeito", score: Math.max(10,100-presenca), motivo:`Alta ausência: ${aus} faltas em ${total} votações` };
+    if (aus > total * 0.35)
+      return { classificacao:"alerta", score: Math.max(20,70-presenca), motivo:`Ausência moderada: ${aus} faltas em ${total} votações` };
+    return { classificacao:"ok", score: presenca, motivo:`Presença em ${sim+nao+secr} de ${total} votações (${presenca}%)` };
+  }
 
   useEffect(() => {
     (async () => {
@@ -1498,11 +1517,44 @@ function TelaSenado({ s, tema, setTema, setTela }) {
           foto: s.IdentificacaoParlamentar.UrlFotoParlamentar,
           email: s.IdentificacaoParlamentar.EmailParlamentar,
           sexo: s.IdentificacaoParlamentar.SexoParlamentar,
+          classificacao: "loading", score: null, motivo: "",
         })));
       } catch {}
       setCarregando(false);
     })();
   }, []);
+
+  // Carrega votos de TODOS os senadores em background para calcular scores
+  useEffect(() => {
+    if (carregando || senadores.length === 0 || scoresCarregados) return;
+    (async () => {
+      // Carrega todos os períodos uma vez
+      const periodosUnicos = [...new Set(TEMAS_SENADO.map(t=>t.periodo))];
+      const dadosPeriodos = {};
+      await Promise.allSettled(periodosUnicos.map(async (periodo) => {
+        try {
+          const r = await fetch(`${SENADO_API}/plenario/lista/votacao/${periodo}.json`);
+          const d = await r.json();
+          dadosPeriodos[periodo] = d?.ListaVotacoes?.Votacoes?.Votacao || [];
+        } catch { dadosPeriodos[periodo] = []; }
+      }));
+      // Para cada senador, calcula seus votos
+      setSenadores(prev => prev.map(sen => {
+        const votos = {};
+        TEMAS_SENADO.forEach(tema => {
+          const vs = dadosPeriodos[tema.periodo] || [];
+          const vot = vs.find(v => String(v.CodigoSessaoVotacao) === String(tema.sessaoId));
+          if (vot) {
+            const vp = (vot.Votos?.VotoParlamentar||[]).find(v=>v.CodigoParlamentar===sen.id);
+            votos[tema.id] = vp?.Voto || "Ausente";
+          } else votos[tema.id] = "Ausente";
+        });
+        const cl = calcScoreSenador(votos);
+        return { ...sen, ...cl, votosCache: votos };
+      }));
+      setScoresCarregados(true);
+    })();
+  }, [carregando, senadores.length, scoresCarregados]);
 
   const carregarVotacaoTema = async (tema) => {
     setAbaVot(tema); setVotosVot([]); setCarregVot(true);
@@ -1547,12 +1599,28 @@ function TelaSenado({ s, tema, setTema, setTela }) {
   const partidos = ["Todos", ...new Set(senadores.map(s => s.partido).filter(Boolean))].sort();
   const ufs = ["Todos", ...new Set(senadores.map(s => s.uf).filter(Boolean))].sort();
 
-  const senadoresFiltrados = senadores.filter(s => {
-    if (busca && !s.nome.toLowerCase().includes(busca.toLowerCase()) && !s.partido?.toLowerCase().includes(busca.toLowerCase())) return false;
-    if (filtPartido !== "Todos" && s.partido !== filtPartido) return false;
-    if (filtUf !== "Todos" && s.uf !== filtUf) return false;
-    return true;
-  });
+  const COR_SEN = {
+    ok:      { dot:"#00d464", bg:"rgba(0,212,100,0.08)",  border:"rgba(0,212,100,0.25)",  text:"#00d464",  label:"ATIVO"   },
+    alerta:  { dot:"#ffd60a", bg:"rgba(255,214,10,0.08)", border:"rgba(255,214,10,0.25)", text:"#ffd60a",  label:"REGULAR" },
+    suspeito:{ dot:"#ff4d6d", bg:"rgba(255,77,109,0.08)", border:"rgba(255,77,109,0.25)", text:"#ff4d6d",  label:"AUSENTE" },
+    loading: { dot:"#555",    bg:"transparent",           border:"rgba(255,255,255,0.06)",text:"#555",     label:"..."     },
+  };
+
+  const senadoresFiltrados = senadores
+    .filter(s => {
+      if (busca && !s.nome.toLowerCase().includes(busca.toLowerCase()) && !s.partido?.toLowerCase().includes(busca.toLowerCase())) return false;
+      if (filtPartido !== "Todos" && s.partido !== filtPartido) return false;
+      if (filtUf !== "Todos" && s.uf !== filtUf) return false;
+      if (filtClassif !== "Todos" && s.classificacao !== filtClassif) return false;
+      return true;
+    })
+    .sort((a,b) => {
+      if (filtOrdem === "A-Z") return a.nome.localeCompare(b.nome);
+      if (filtOrdem === "Z-A") return b.nome.localeCompare(a.nome);
+      if (filtOrdem === "Score↓") return (b.score||0) - (a.score||0);
+      if (filtOrdem === "Score↑") return (a.score||0) - (b.score||0);
+      return 0;
+    });
 
   const corVoto = t => { const v=t?.toLowerCase(); return v==="sim"?"#00d464":v==="não"||v==="nao"?"#ff4d6d":v==="ausente"||v==="abstencao"?T.textMuted:"#ffd60a"; };
   const bgVoto  = t => { const v=t?.toLowerCase(); return v==="sim"?"rgba(0,212,100,0.1)":v==="não"||v==="nao"?"rgba(255,77,109,0.1)":"transparent"; };
@@ -1879,21 +1947,121 @@ function TelaSenado({ s, tema, setTema, setTela }) {
     );
   }
 
-  // Tela principal — lista senadores
+  // Tela principal — lista senadores (layout igual ao de deputados)
+  const nAtivo    = senadores.filter(s=>s.classificacao==="ok").length;
+  const nRegular  = senadores.filter(s=>s.classificacao==="alerta").length;
+  const nAusente  = senadores.filter(s=>s.classificacao==="suspeito").length;
+
   return (
     <div style={s.app}>
       <div style={s.grid}/>
       <NavBar telaAtual="senado" setTela={setTela} setTema={setTema} tema={tema} s={s}/>
-      <div style={{...s.main,maxWidth:"1100px"}}>
-        {/* Header */}
+      <div style={{...s.main,maxWidth:"900px"}}>
+
+        {/* Header — igual ao de deputados */}
         <div style={{marginBottom:"20px"}}>
-          <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>SENADO FEDERAL · 81 SENADORES</div>
+          <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>SENADO FEDERAL · DADOS REAIS · API DO SENADO</div>
           <h1 style={{margin:0,fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>Senado Federal</h1>
-          <p style={{margin:"8px 0 0",fontSize:"13px",color:T.textSecondary}}>Clique em um senador para ver como votou nos temas sensíveis. Dados oficiais API do Senado.</p>
         </div>
 
-        {/* Votações do Senado */}
-        <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"18px",marginBottom:"20px"}}>
+        {/* Contadores — igual ao de deputados */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"22px"}}>
+          {[
+            {label:"TOTAL",   val:senadores.length, cor:T.textSecondary, border:T.cardBorder},
+            {label:"✓ ATIVO", val:nAtivo,   cor:"#00d464", border:"rgba(0,212,100,0.3)"},
+            {label:"△ REGULAR",val:nRegular, cor:"#ffd60a", border:"rgba(255,214,10,0.3)"},
+            {label:"● AUSENTE",val:nAusente, cor:"#ff4d6d", border:"rgba(255,77,109,0.3)"},
+          ].map((item,i)=>(
+            <div key={i} style={{background:T.cardBg,border:`1px solid ${item.border}`,borderRadius:"10px",padding:"14px",textAlign:"center"}}>
+              <div style={{fontSize:"24px",fontWeight:"800",color:item.cor,lineHeight:1}}>{item.val}</div>
+              <div style={{fontSize:"9px",color:T.textLabel,letterSpacing:"0.1em",marginTop:"6px",fontWeight:"700"}}>{item.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filtros — igual ao de deputados */}
+        <div style={{background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"14px 16px",marginBottom:"14px"}}>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center",marginBottom:"10px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"7px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"7px 12px",flex:"1",minWidth:"200px"}}>
+              <IconSearch/><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar senador ou partido..."
+                style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"13px",fontFamily:"inherit",width:"100%"}}/>
+            </div>
+            <select value={filtClassif} onChange={e=>setFiltClassif(e.target.value)}
+              style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
+              {["Todos","ok","alerta","suspeito"].map(v=><option key={v} value={v} style={{background:T.selectBg}}>{v==="Todos"?"Todos":v==="ok"?"✓ Ativo":v==="alerta"?"△ Regular":"● Ausente"}</option>)}
+            </select>
+          </div>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
+            <select value={filtPartido} onChange={e=>setFiltPartido(e.target.value)}
+              style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
+              {partidos.map(p=><option key={p} value={p} style={{background:T.selectBg}}>{p}</option>)}
+            </select>
+            <select value={filtUf} onChange={e=>setFiltUf(e.target.value)}
+              style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
+              {ufs.map(u=><option key={u} value={u} style={{background:T.selectBg}}>{u}</option>)}
+            </select>
+            <select value={filtOrdem} onChange={e=>setFiltOrdem(e.target.value)}
+              style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
+              {["A-Z","Z-A","Score↓","Score↑"].map(o=><option key={o} value={o} style={{background:T.selectBg}}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Contador resultado */}
+        <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"12px"}}>
+          {senadoresFiltrados.length} SENADORES ENCONTRADOS
+          {!scoresCarregados && senadores.length > 0 && <span style={{color:"#ffd60a",marginLeft:"10px"}}>⏳ Calculando scores...</span>}
+        </div>
+
+        {/* Lista senadores — cards IDÊNTICOS aos de deputados */}
+        {carregando ? (
+          <div style={{textAlign:"center",padding:"60px",color:T.textSecondary}}>
+            <div style={{fontSize:"28px",marginBottom:"12px"}}>⏳</div>Carregando senadores...
+          </div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+            {senadoresFiltrados.map(sen=>{
+              const c = COR_SEN[sen.classificacao||"loading"];
+              return (
+                <div key={sen.id} onClick={()=>carregarVotosSenador(sen)}
+                  style={{background:c.bg,border:`1px solid ${c.border}`,borderRadius:"10px",padding:"16px 18px",cursor:"pointer",
+                    display:"flex",gap:"14px",alignItems:"center",transition:"opacity 0.15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.opacity="0.85"}
+                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                  {/* Foto com ponto colorido */}
+                  <div style={{position:"relative",flexShrink:0}}>
+                    <img src={sen.foto||`https://ui-avatars.com/api/?name=${encodeURIComponent(sen.nome)}&background=1a1f2e&color=a78bfa&size=60`}
+                      alt="" style={{width:"52px",height:"52px",borderRadius:"50%",objectFit:"cover",border:`2px solid ${c.dot}55`,display:"block"}}
+                      onError={e=>{e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(sen.nome)}&background=1a1f2e&color=a78bfa&size=60`}}/>
+                    <div style={{position:"absolute",bottom:"1px",right:"1px",width:"12px",height:"12px",borderRadius:"50%",background:c.dot,border:"2px solid "+T.appBg}}/>
+                  </div>
+                  {/* Info */}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:"14px",fontWeight:"700",color:T.textPrimary,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{sen.nome}</div>
+                    <div style={{fontSize:"11px",color:T.textSecondary,marginBottom:"4px"}}>{sen.partido} · {sen.uf}</div>
+                    {sen.motivo && <div style={{fontSize:"11px",color:c.text,fontWeight:"600",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      {sen.classificacao==="loading"?"⏳ Calculando...":sen.motivo}
+                    </div>}
+                  </div>
+                  {/* Badge + Score */}
+                  <div style={{flexShrink:0,textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"4px"}}>
+                    <span style={{fontSize:"10px",fontWeight:"800",letterSpacing:"0.08em",padding:"4px 10px",borderRadius:"4px",
+                      background:`${c.dot}22`,color:c.text,border:`1px solid ${c.dot}44`}}>
+                      {c.label}
+                    </span>
+                    {sen.score !== null && (
+                      <span style={{fontSize:"11px",color:T.textMuted}}>Score {sen.score}</span>
+                    )}
+                  </div>
+                  <span style={{color:T.textMuted,fontSize:"16px",flexShrink:0}}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Seção temas — colapsável abaixo da lista */}
+        <div style={{marginTop:"28px",background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"18px"}}>
           <div style={{fontSize:"11px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700",marginBottom:"14px"}}>🗳️ TEMAS SENSÍVEIS NO SENADO — clique para ver cada voto</div>
           <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
             {TEMAS_SENADO.map(tema=>{
@@ -1923,42 +2091,6 @@ function TelaSenado({ s, tema, setTema, setTela }) {
             })}
           </div>
         </div>
-
-        {/* Filtros senadores */}
-        <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"16px",alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"7px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",padding:"7px 12px",flex:"1",minWidth:"200px"}}>
-            <IconSearch/><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar senador ou partido..."
-              style={{background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"13px",fontFamily:"inherit",width:"100%"}}/>
-          </div>
-          <select value={filtPartido} onChange={e=>setFiltPartido(e.target.value)}
-            style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
-            {partidos.map(p=><option key={p} value={p} style={{background:T.selectBg}}>{p}</option>)}
-          </select>
-          <select value={filtUf} onChange={e=>setFiltUf(e.target.value)}
-            style={{background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"6px",color:T.textPrimary,fontSize:"12px",fontFamily:"inherit",padding:"7px 12px",cursor:"pointer",outline:"none"}}>
-            {ufs.map(u=><option key={u} value={u} style={{background:T.selectBg}}>{u}</option>)}
-          </select>
-          <span style={{fontSize:"11px",color:T.textMuted}}>{senadoresFiltrados.length} senadores</span>
-        </div>
-
-        {/* Grid senadores */}
-        {carregando ? (
-          <div style={{textAlign:"center",padding:"60px",color:T.textSecondary}}>⏳ Carregando senadores...</div>
-        ) : (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"10px"}}>
-            {senadoresFiltrados.map(sen=>(
-              <div key={sen.id} onClick={()=>carregarVotosSenador(sen)}
-                style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"10px",padding:"14px",cursor:"pointer",display:"flex",gap:"12px",alignItems:"center"}}>
-                <img src={sen.foto} alt="" style={{width:"44px",height:"44px",borderRadius:"50%",objectFit:"cover",border:"2px solid #00d4aa44",flexShrink:0}}
-                  onError={e=>{e.target.style.background="#1a1f2e";e.target.style.display="none"}}/>
-                <div style={{minWidth:0}}>
-                  <div style={{fontSize:"12px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{sen.nome}</div>
-                  <div style={{fontSize:"10px",color:T.textSecondary,marginTop:"2px"}}>{sen.partido} · {sen.uf}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
