@@ -1126,6 +1126,8 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
     const vl = v.toUpperCase();
     if (vl==="SIM"||vl==="S") return "#00d464";
     if (vl==="NÃO"||vl==="NAO"||vl==="N") return "#ff4d6d";
+    if (vl==="VOTOU") return "#60a5fa"; // voto secreto — só confirma presença
+    if (["AP","LS","MIS","NCom","LP","P-NRV"].some(x=>v.includes(x))) return T.textMuted;
     return "#ffd60a";
   };
   const emVoto = v => {
@@ -1133,6 +1135,8 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
     const vl = v.toUpperCase();
     if (vl==="SIM"||vl==="S") return "✅";
     if (vl==="NÃO"||vl==="NAO"||vl==="N") return "❌";
+    if (vl==="VOTOU") return "🔒"; // secreto
+    if (["AP","LS","MIS","NCom","LP","P-NRV"].some(x=>v.includes(x))) return "⬜";
     return "🟡";
   };
 
@@ -1152,7 +1156,8 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
       const vl = (v.voto||"").toUpperCase();
       if (filtVoto==="sim" && vl!=="SIM" && vl!=="S") return false;
       if (filtVoto==="nao" && vl!=="NÃO" && vl!=="NAO" && vl!=="N") return false;
-      if (filtVoto==="outro" && (vl==="SIM"||vl==="S"||vl==="NÃO"||vl==="NAO"||vl==="N")) return false;
+      if (filtVoto==="secreto" && vl!=="VOTOU") return false;
+      if (filtVoto==="outro" && (vl==="SIM"||vl==="S"||vl==="NÃO"||vl==="NAO"||vl==="N"||vl==="VOTOU")) return false;
     }
     if (filtPartido !== "Todos" && v.partido !== filtPartido) return false;
     return true;
@@ -1271,12 +1276,18 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px",alignItems:"center"}}>
               <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔍 Buscar nome/partido/UF..."
                 style={{flex:1,minWidth:"160px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,color:T.textPrimary,padding:"7px 12px",borderRadius:"6px",fontSize:"11px",fontFamily:"inherit"}}/>
-              {["todos","sim","nao","outro"].map(f=>(
-                <button key={f} onClick={()=>setFiltVoto(f)} style={{padding:"6px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
-                  background:filtVoto===f?f==="sim"?"rgba(0,212,100,0.15)":f==="nao"?"rgba(255,77,109,0.15)":T.accentDim:T.tagBg,
-                  color:filtVoto===f?f==="sim"?"#00d464":f==="nao"?"#ff4d6d":"#00d4aa":T.textMuted,
-                  border:`1px solid ${filtVoto===f?f==="sim"?"#00d46444":f==="nao"?"#ff4d6d44":"#00d4aa44":T.cardBorder}`}}>
-                  {f==="todos"?"Todos":f==="sim"?"✅ SIM":f==="nao"?"❌ NÃO":"🟡 Outros"}
+              {[
+                {id:"todos",l:"Todos",bg:"",c:""},
+                {id:"sim",l:"✅ SIM",bg:"rgba(0,212,100,0.15)",c:"#00d464"},
+                {id:"nao",l:"❌ NÃO",bg:"rgba(255,77,109,0.15)",c:"#ff4d6d"},
+                {id:"secreto",l:"🔒 Secreto",bg:"rgba(96,165,250,0.15)",c:"#60a5fa"},
+                {id:"outro",l:"⬜ Ausente",bg:"",c:""},
+              ].map(f=>(
+                <button key={f.id} onClick={()=>setFiltVoto(f.id)} style={{padding:"6px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+                  background:filtVoto===f.id?(f.bg||T.accentDim):T.tagBg,
+                  color:filtVoto===f.id?(f.c||"#00d4aa"):T.textMuted,
+                  border:`1px solid ${filtVoto===f.id?(f.c||"#00d4aa")+"44":T.cardBorder}`}}>
+                  {f.l}
                 </button>
               ))}
               <select value={filtPartido} onChange={e=>setFiltPartido(e.target.value)}
@@ -1286,6 +1297,9 @@ function TelaVotacoes({ s, tema, setTema, setTela }) {
             </div>
             <div style={{fontSize:"11px",color:T.textMuted,marginBottom:"10px"}}>
               {votosFiltrados.length} parlamentares · ✅ {contSim} SIM · ❌ {contNao} NÃO
+              {votosFiltrados.filter(v=>(v.voto||"").toUpperCase()==="VOTOU").length > 0 && (
+                <span> · 🔒 {votosFiltrados.filter(v=>(v.voto||"").toUpperCase()==="VOTOU").length} Secreto</span>
+              )}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:"6px"}}>
               {votosFiltrados.map((v,i)=>{
