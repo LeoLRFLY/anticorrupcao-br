@@ -2,11 +2,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "functions": {
-    "api/*.js": { "runtime": "edge" }
-  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/news", "destination": "/api/news.js" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
