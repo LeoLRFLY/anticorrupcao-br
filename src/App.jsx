@@ -267,23 +267,26 @@ function BotaoVoltar({ onClick, label, s }) {
 
 
 
-// ── Notícias via Google News RSS ──────────────────────────────────────────────
+// ── Notícias via Google News RSS (proxy allorigins) ───────────────────────────
 async function buscarNoticias(nome, cargo) {
-  const query = encodeURIComponent(`"${nome}" ${cargo || "deputado OR senador"}`);
-  const rss   = `https://news.google.com/rss/search?q=${query}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
-  // CORS proxy público
-  const url   = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rss)}&api_key=public&count=8`;
+  const query   = encodeURIComponent(`"${nome}"`);
+  const rssUrl  = `https://news.google.com/rss/search?q=${query}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+  const proxy   = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
   try {
-    const r = await fetch(url);
+    const r = await fetch(proxy);
     const d = await r.json();
-    if (d.status !== "ok") return [];
-    return (d.items || []).map(it => ({
-      titulo:    it.title?.replace(/ - .*$/, ""),
-      fonte:     it.title?.match(/ - (.+)$/)?.[1] || "Google News",
-      link:      it.link,
-      data:      it.pubDate?.slice(0,10),
-      descricao: it.description?.replace(/<[^>]+>/g,"").slice(0,140),
-    }));
+    const xml = d.contents || "";
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1]);
+    return items.slice(0, 8).map(item => {
+      const get = tag => item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`))?.[1]?.trim() || "";
+      const titulo_raw = get("title");
+      const fonte  = get("source") || titulo_raw.match(/ - (.+)$/)?.[1] || "Google News";
+      const titulo = titulo_raw.replace(/ - [^-]+$/, "");
+      const link   = get("link");
+      const data   = get("pubDate").slice(0,16);
+      const desc   = get("description").replace(/<[^>]+>/g,"").slice(0,150);
+      return { titulo, fonte, link, data, descricao: desc };
+    });
   } catch { return []; }
 }
 
