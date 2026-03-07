@@ -2165,7 +2165,7 @@ function TelaSTF({ s, tema, setTema, setTela }) {
   if (ministrSel) {
     const m = ministrSel;
     const anosRestantes = m.aposentadoria - new Date().getFullYear();
-
+    const [secaoSTF, setSecaoSTF] = React.useState(null);
     const votosSTFArr = m.casosDestaque ? [] : [];
 
     return (
@@ -2357,6 +2357,157 @@ function TelaSTF({ s, tema, setTema, setTela }) {
     );
   }
 
+  return (
+    <div style={s.app}>
+      <div style={s.grid}/><NavBar telaAtual="stf" setTela={(t)=>{setMinistrSel(null);setCasoSel(null);if(t!=="stf")setTela(t);}} setTema={setTema} tema={tema} s={s}/>
+      <div style={{...s.main,maxWidth:"1100px"}}>
+        {/* Header */}
+        <div style={{marginBottom:"20px"}}>
+          <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.12em",marginBottom:"6px"}}>PODER JUDICIÁRIO · SUPREMO TRIBUNAL FEDERAL</div>
+          <h1 style={{margin:"0 0 6px",fontSize:"22px",fontWeight:"800",color:T.textPrimary}}>STF — Supremo Tribunal Federal</h1>
+          <p style={{margin:0,fontSize:"13px",color:T.textSecondary}}>11 ministros vitalícios que interpretam a Constituição. Clique em um ministro ou caso para ver detalhes.</p>
+        </div>
+        {/* Tabs */}
+        <div style={{display:"flex",gap:"4px",marginBottom:"20px"}}>
+          {[
+          {id:"ministros",label:"👤 MINISTROS"},
+          {id:"casos",label:"⚖️ CASOS HISTÓRICOS"},
+          {id:"noticias",label:"📰 NOTÍCIAS"},
+        ].map(t=>(
+            <button key={t.id} onClick={()=>setAba(t.id)} style={{
+              padding:"7px 16px",borderRadius:"6px",fontFamily:"inherit",fontSize:"11px",fontWeight:"700",cursor:"pointer",
+              background:aba===t.id?T.accentDim:T.tagBg,
+              color:aba===t.id?"#00d4aa":T.textSecondary,
+              border:`1px solid ${aba===t.id?"#00d4aa44":T.inputBorder}`,
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {aba === "ministros" && (<>
+          {/* Filtros */}
+          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"16px"}}>
+            {[{id:"todos",label:"Todos"},
+              {id:"progressista",label:"🟣 Progressistas"},
+              {id:"conservador",label:"🔴 Conservadores"},
+              {id:"lula",label:"🔵 Indicados PT/PSDB"},
+              {id:"bolsonaro",label:"🟡 Indicados Bolsonaro"}].map(f=>(
+              <button key={f.id} onClick={()=>setFiltro(f.id)} style={{
+                padding:"5px 12px",borderRadius:"6px",fontFamily:"inherit",fontSize:"10px",fontWeight:"700",cursor:"pointer",
+                background:filtro===f.id?T.accentDim:T.tagBg,
+                color:filtro===f.id?"#00d4aa":T.textSecondary,
+                border:`1px solid ${filtro===f.id?"#00d4aa44":T.inputBorder}`,
+              }}>{f.label}</button>
+            ))}
+          </div>
+          {/* Grid ministros */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"10px"}}>
+            {ministrFilt.map(m=>{
+              const anosR = m.aposentadoria - new Date().getFullYear();
+              return (
+                <div key={m.id} onClick={()=>setMinistrSel(m)}
+                  style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderLeft:`3px solid ${m.cor}`,borderRadius:"10px",padding:"16px",cursor:"pointer"}}>
+                  <div style={{display:"flex",gap:"14px",alignItems:"center",marginBottom:"12px"}}>
+                    <div style={{width:"48px",height:"48px",borderRadius:"50%",background:`${m.cor}22`,border:`2px solid ${m.cor}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"16px",fontWeight:"800",color:m.cor,flexShrink:0}}>
+                      {m.nome.split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("")}
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:"13px",fontWeight:"800",color:T.textPrimary}}>{m.nome}</div>
+                      <div style={{fontSize:"10px",color:T.textSecondary,marginTop:"2px"}}>{m.cargo}</div>
+                      <div style={{display:"flex",gap:"5px",marginTop:"5px",flexWrap:"wrap"}}>
+                        <span style={{fontSize:"9px",padding:"2px 7px",borderRadius:"3px",background:`${m.cor}22`,color:m.cor,fontWeight:"700"}}>Indicado: {m.indicadoPor}</span>
+                        <span style={{fontSize:"9px",padding:"2px 7px",borderRadius:"3px",background:anosR<=4?"rgba(255,77,109,0.15)":T.tagBg,color:anosR<=4?"#ff4d6d":T.textMuted,fontWeight:"600"}}>
+                          {anosR > 0 ? `Aposenta em ${m.aposentadoria}` : `Aposenta ${m.aposentadoria}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Barra progressista/conservador */}
+                  <div style={{height:"5px",background:"#ef444422",borderRadius:"3px",overflow:"hidden"}}>
+                    <div style={{width:`${m.perfil.progressista}%`,height:"100%",background:"linear-gradient(90deg,#ef4444,#a78bfa)"}}/>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:"9px",color:T.textMuted,marginTop:"3px"}}>
+                    <span>Conservador</span><span>Progressista</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>)}
+
+        {aba === "casos" && (
+          <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+            {CASOS_STF.map(caso=>{
+              const simCount = Object.values(caso.votos).filter(v=>v?.toLowerCase().includes("sim")||v?.toLowerCase().includes("inconst")).length;
+              const naoCount = Object.values(caso.votos).filter(v=>v?.toLowerCase().includes("não")||v?.toLowerCase().includes("const.")).length;
+              return (
+                <div key={caso.id} onClick={()=>setCasoSel(caso)}
+                  style={{background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"10px",padding:"18px",cursor:"pointer",display:"flex",gap:"14px",alignItems:"center"}}>
+                  <span style={{fontSize:"28px",flexShrink:0}}>{caso.emoji}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"5px",flexWrap:"wrap"}}>
+                      <span style={{fontSize:"14px",fontWeight:"800",color:T.textPrimary}}>{caso.titulo}</span>
+                      <span style={{fontSize:"10px",color:T.textMuted,background:T.tagBg,padding:"2px 8px",borderRadius:"10px"}}>{caso.processo}</span>
+                    </div>
+                    <p style={{margin:"0 0 8px",fontSize:"12px",color:T.textSecondary,lineHeight:"1.5"}}>{caso.descricao}</p>
+                    <div style={{display:"flex",gap:"10px",fontSize:"10px",flexWrap:"wrap",alignItems:"center"}}>
+                      {simCount > 0 && <span style={{color:"#00d464",fontWeight:"700"}}>✅ {simCount} favoráveis</span>}
+                      {naoCount > 0 && <span style={{color:"#ff4d6d",fontWeight:"700"}}>❌ {naoCount} contrários</span>}
+                      <span style={{padding:"2px 8px",borderRadius:"10px",
+                        background:caso.aprovado===true?"rgba(0,212,100,0.1)":caso.aprovado===false?"rgba(255,77,109,0.1)":"rgba(255,214,10,0.1)",
+                        color:caso.aprovado===true?"#00d464":caso.aprovado===false?"#ff4d6d":"#ffd60a",fontWeight:"700"}}>
+                        {caso.resultado}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{color:"#00d4aa",fontSize:"18px",flexShrink:0}}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {aba === "noticias" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+              <div style={{fontSize:"10px",color:T.textLabel,letterSpacing:"0.1em",fontWeight:"700"}}>NOTÍCIAS RECENTES · GOOGLE NEWS · STF</div>
+              <button onClick={()=>{setNotSTF([]);setCarregNotSTF(true);buscarNoticias("STF Supremo Tribunal Federal","ministros decisões").then(r=>{setNotSTF(r);setCarregNotSTF(false);})}}
+                style={{fontSize:"10px",padding:"5px 12px",borderRadius:"6px",background:T.tagBg,border:`1px solid ${T.cardBorder}`,color:T.textSecondary,cursor:"pointer",fontFamily:"inherit",fontWeight:"700"}}>
+                🔄 Atualizar
+              </button>
+            </div>
+            {carregNotSTF ? (
+              <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"11px"}}>⏳ Buscando notícias do STF...</div>
+            ) : notSTF.length === 0 ? (
+              <div style={{textAlign:"center",padding:"40px",color:T.textMuted,fontSize:"11px"}}>
+                <div style={{fontSize:"32px",marginBottom:"12px"}}>⚖️</div>
+                Nenhuma notícia recente encontrada.
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                {notSTF.map((n,i) => (
+                  <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
+                    style={{display:"block",background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"14px 16px",textDecoration:"none",transition:"all 0.15s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor="#ffd60a44";e.currentTarget.style.background="rgba(255,214,10,0.03)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.subCardBorder;e.currentTarget.style.background=T.subCardBg;}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",marginBottom:"6px"}}>
+                      <div style={{fontSize:"13px",fontWeight:"700",color:T.textPrimary,lineHeight:"1.4"}}>{n.titulo}</div>
+                      <span style={{fontSize:"9px",color:"#ffd60a",fontWeight:"700",background:"rgba(255,214,10,0.1)",padding:"2px 8px",borderRadius:"10px",whiteSpace:"nowrap",flexShrink:0}}>{n.fonte}</span>
+                    </div>
+                    {n.descricao && <p style={{margin:"0 0 6px",fontSize:"11px",color:T.textSecondary,lineHeight:"1.6"}}>{n.descricao}</p>}
+                    <div style={{fontSize:"10px",color:T.textMuted}}>📅 {n.data} · Clique para ler →</div>
+                  </a>
+                ))}
+                <div style={{fontSize:"10px",color:T.textMuted,textAlign:"center",padding:"8px"}}>
+                  Fonte: Google News · Notícias sobre o STF e seus ministros
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ── Tela Perfil Deputado ──────────────────────────────────────────────────────
