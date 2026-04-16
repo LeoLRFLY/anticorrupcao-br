@@ -25,10 +25,10 @@ function classificarLocal(despesas) {
 
   // Critérios baseados na cota parlamentar (limite ~R$ 150k/mês = R$ 1.8M/ano)
   if (total > 120000 || maiorDespesa > 50000 || concentracao > 8) {
-    return { classificacao: "suspeito", score: Math.min(95, 65 + Math.floor(total/5000)), motivo: total > 120000 ? "Gastos acima da média da cota" : maiorDespesa > 50000 ? "Despesa unitária muito elevada" : "Alta concentração em poucos fornecedores" };
+    return { classificacao: "suspeito", score: Math.min(95, 65 + Math.floor(total/5000)), motivo: total > 120000 ? "Ponto de atenção — gastos acima da média" : maiorDespesa > 50000 ? "Ponto de atenção — despesa unitária elevada" : "Ponto de atenção — concentração em poucos fornecedores" };
   }
   if (total > 60000 || maiorDespesa > 20000 || concentracao > 5) {
-    return { classificacao: "alerta", score: Math.min(64, 35 + Math.floor(total/3000)), motivo: total > 60000 ? "Gastos elevados, requer atenção" : "Padrão de gastos atípico" };
+    return { classificacao: "alerta", score: Math.min(64, 35 + Math.floor(total/3000)), motivo: total > 60000 ? "Verifique os gastos — acima da média" : "Analise — padrão de gastos atípico" };
   }
   if (total === 0) {
     return { classificacao: "ok", score: 5, motivo: "Sem despesas registradas em 2024" };
@@ -50,9 +50,10 @@ async function classificarDeputado(deputado, despesas) {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 200,
-        system: `Você classifica gastos de deputados brasileiros. Responda APENAS com JSON puro sem markdown:
+        system: `Você analisa gastos de deputados brasileiros. Responda APENAS com JSON puro sem markdown:
 {"classificacao":"ok"|"alerta"|"suspeito","score":0-100,"motivo":"frase curta até 70 chars"}
-Critérios: ok=padrão normal, alerta=pontos atenção, suspeito=irregularidades claras`,
+Critérios: ok=padrão normal, alerta=merece atenção, suspeito=gastos muito acima da média ou padrão atípico.
+O motivo deve ser neutro e descritivo, ex: "Ponto de atenção — gastos acima da média".`,
         messages: [{
           role: "user",
           content: `Deputado: ${deputado.nome} (${deputado.siglaPartido}/${deputado.siglaUf})
@@ -77,7 +78,7 @@ Categorias: ${tiposDespesa.slice(0,4).join(", ")}`
 const COR = {
   ok:       { bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  text: "#10b981", label: "OK",       dot: "#10b981" },
   alerta:   { bg: "rgba(245,158,11,0.07)",  border: "rgba(245,158,11,0.2)",  text: "#f59e0b", label: "ALERTA",   dot: "#f59e0b" },
-  suspeito: { bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.22)",  text: "#ef4444", label: "SUSPEITO", dot: "#ef4444" },
+  suspeito: { bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.22)",  text: "#ef4444", label: "ALTO RISCO", dot: "#ef4444" },
   loading:  { bg: "rgba(255,255,255,0.01)", border: "rgba(255,255,255,0.05)",text: "#475569", label: "...",      dot: "#334155" },
 };
 
@@ -173,18 +174,18 @@ function gerarAlertas(despesas) {
   const maiorDespesa = despesas.reduce((mx,d)=>d.valorLiquido>mx.valorLiquido?d:mx, despesas[0]);
 
   if (total > 120000)
-    alertas.push({ nivel:"critico", icone:"🚨", titulo:"Gasto muito acima da média", texto:`Total de ${fmtBRL(total)} ultrapassa o padrão esperado de R$ 100 mil/ano para cota parlamentar.` });
+    alertas.push({ nivel:"critico", icone:"⚠️", titulo:"Gastos acima da média — analise", texto:`Total de ${fmtBRL(total)} supera o padrão esperado de R$ 100 mil/ano para cota parlamentar. Vale verificar os detalhes.` });
   else if (total > 70000)
-    alertas.push({ nivel:"atencao", icone:"⚠️", titulo:"Gasto elevado", texto:`Total de ${fmtBRL(total)} está acima da média dos deputados brasileiros.` });
+    alertas.push({ nivel:"atencao", icone:"📊", titulo:"Ponto de atenção — gastos elevados", texto:`Total de ${fmtBRL(total)} está acima da média dos deputados brasileiros. Analise as categorias abaixo.` });
 
   if (fornMaisUsado && fornMaisUsado[1] >= 8)
-    alertas.push({ nivel:"atencao", icone:"🔁", titulo:"Fornecedor repetido com frequência", texto:`Um mesmo fornecedor aparece ${fornMaisUsado[1]} vezes nas despesas. Isso pode indicar favorecimento.` });
+    alertas.push({ nivel:"atencao", icone:"🔁", titulo:"Fornecedor frequente — verifique", texto:`Um mesmo fornecedor aparece ${fornMaisUsado[1]} vezes nas despesas. Analise se há justificativa para a recorrência.` });
 
   if (numFornecedores > 30 && total < 20000)
-    alertas.push({ nivel:"critico", icone:"🕵️", titulo:"Muitos fornecedores para valor baixo", texto:`${numFornecedores} fornecedores diferentes para um total de apenas ${fmtBRL(total)}. Padrão atípico.` });
+    alertas.push({ nivel:"critico", icone:"📋", titulo:"Padrão atípico — muitos fornecedores", texto:`${numFornecedores} fornecedores diferentes para um total de ${fmtBRL(total)}. Padrão fora da média — vale analisar.` });
 
   if (maiorDespesa && maiorDespesa.valorLiquido > 15000)
-    alertas.push({ nivel:"atencao", icone:"💸", titulo:"Despesa unitária muito alta", texto:`Uma única despesa de ${fmtBRL(maiorDespesa.valorLiquido)} com "${maiorDespesa.nomeFornecedor}". Verifique se há justificativa.` });
+    alertas.push({ nivel:"atencao", icone:"💸", titulo:"Despesa de alto valor — analise", texto:`Uma despesa de ${fmtBRL(maiorDespesa.valorLiquido)} com "${maiorDespesa.nomeFornecedor}". Verifique se há documentação.` });
 
   if (tipoMaisGasto && tipoMaisGasto[1].count > 15)
     alertas.push({ nivel:"info", icone:"📋", titulo:`Alta concentração em "${tipoMaisGasto[0]?.substring(0,35)}"`, texto:`${tipoMaisGasto[1].count} transações nessa categoria representam ${fmtBRL(tipoMaisGasto[1].total)} do total.` });
@@ -2557,7 +2558,7 @@ function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
               :totalGasto>200000?{nivel:"atencao",icon:"⚠️",titulo:"Gastos elevados",texto:`R$ ${(totalGasto/1000).toFixed(0)}k em ${anoDespesa}. Acima da mediana nacional de R$ 120k.`}
               :totalGasto>0?{nivel:"ok",icon:"✅",titulo:"Gastos dentro do padrão",texto:`R$ ${(totalGasto/1000).toFixed(0)}k em ${anoDespesa}. Compatível com a média dos deputados.`}:null,
               alertas.length>0?{nivel:"atencao",icon:"💸",titulo:`${alertas.length} transação(ões) acima de R$ 15.000`,texto:alertas.slice(0,2).map(a=>`${a.nomeFornecedor} (R$ ${(a.valorLiquido||0).toLocaleString("pt-BR",{maximumFractionDigits:0})})`).join(" · ")+(alertas.length>2?` e mais ${alertas.length-2}`:"")}: null,
-              fornSet.size===1&&despesas.length>5?{nivel:"critico",icon:"🔍",titulo:"Concentração em fornecedor único",texto:`Todas as ${despesas.length} transações com um único fornecedor. Padrão atípico.`}:null,
+              fornSet.size===1&&despesas.length>5?{nivel:"critico",icon:"📋",titulo:"Padrão atípico — fornecedor único",texto:`Todas as ${despesas.length} transações com um único fornecedor. Analise se há justificativa.`}:null,
               ausCount>votosArr.length*0.4&&votosArr.length>0?{nivel:"atencao",icon:"🗳️",titulo:"Alta ausência em votações",texto:`Ausente em ${ausCount} de ${votosArr.length} votações (${Math.round(ausCount/votosArr.length*100)}%).`}:null,
               {nivel:"info",icon:"📊",titulo:"Perfil de gastos",texto:topForn.length>0?`Top fornecedores: ${topForn.slice(0,3).map(([n,v])=>`${n.slice(0,25)} (R$ ${(v/1000).toFixed(1)}k)`).join(" · ")}`:"Sem dados de despesas para análise."},
             ].filter(Boolean).map((a,i)=>{
@@ -2979,7 +2980,7 @@ export default function AntiCorrupcaoBR() {
             { label:"TOTAL",    valor:deputados.length, cor:"#64748b", key:"Todos"   },
             { label:"✓ OK",     valor:contOk,           cor:"#10b981", key:"ok"      },
             { label:"⚠ ALERTA", valor:contAlerta,       cor:"#f59e0b", key:"alerta"  },
-            { label:"SUSPEITO", valor:contSuspeito,     cor:"#ef4444", key:"suspeito"},
+            { label:"ALTO RISCO", valor:contSuspeito,    cor:"#ef4444", key:"suspeito"},
           ].map((item,i) => (
             <div key={i} onClick={() => setFiltroClassif(filtroClassif===item.key&&i>0?"Todos":item.key)} style={{
               background: filtroClassif===item.key&&i>0 ? `${item.cor}10` : T.subCardBg,
