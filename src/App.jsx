@@ -206,6 +206,7 @@ function NavBar({ telaAtual, setTela, setTema, tema, s }) {
     { id:"senado",   label:"SENADO",     emoji:"🏛️" },
     { id:"votacoes", label:"VOTAÇÕES",   emoji:"🗳️" },
     { id:"stf",      label:"STF",        emoji:"⚖️" },
+    { id:"eleicoes", label:"ELEIÇÕES",   emoji:"🗳️" },
   ];
   return (
     <nav style={s.nav}>
@@ -285,7 +286,6 @@ function BotaoVoltar({ onClick, label, s }) {
 }
 
 
-
 // ── Notícias via Vercel Edge Function (/api/news) ─────────────────────────────
 async function buscarNoticias(nome) {
   try {
@@ -293,6 +293,285 @@ async function buscarNoticias(nome) {
     if (!r.ok) return [];
     return await r.json();
   } catch { return []; }
+}
+
+// ── Tela Eleições ─────────────────────────────────────────────────────────────
+const SITUACAO_COR = {
+  "ELEITO":              { cor:"#10b981", label:"ELEITO"        },
+  "ELEITO POR QP":       { cor:"#10b981", label:"ELEITO"        },
+  "ELEITO POR MÉDIA":    { cor:"#10b981", label:"ELEITO"        },
+  "NÃO ELEITO":          { cor:"#64748b", label:"NÃO ELEITO"    },
+  "SUPLENTE":            { cor:"#f59e0b", label:"SUPLENTE"      },
+  "CASSADO":             { cor:"#ef4444", label:"CASSADO"       },
+  "RENUNCIOU":           { cor:"#ef4444", label:"RENUNCIOU"     },
+  "2º TURNO":            { cor:"#8b5cf6", label:"2º TURNO"      },
+  "ELEITO NO 2º TURNO":  { cor:"#10b981", label:"ELEITO 2T"     },
+};
+
+const fmtPatrimonio = v => {
+  if (!v || v === 0) return "Não declarado";
+  return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",notation:"compact",maximumFractionDigits:1}).format(v);
+};
+
+function TelaEleicoes({ s, setTela, tema, setTema }) {
+  const T = s.T; const dark = tema === "dark";
+
+  const [ano,       setAno]       = useState("2024");
+  const [cargo,     setCargo]     = useState("11");
+  const [uf,        setUf]        = useState("");
+  const [busca,     setBusca]     = useState("");
+  const [candidatos,setCandidatos]= useState([]);
+  const [carregando,setCarregando]= useState(false);
+  const [erro,      setErro]      = useState("");
+  const [pagina,    setPagina]    = useState(1);
+  const [selecionado,setSelecionado]=useState(null);
+  const [bens,      setBens]      = useState([]);
+  const [carregBens,setCarregBens]= useState(false);
+  const POR_PAGINA = 60;
+
+  const ANOS_ELEICAO = ["2024","2022","2020","2018"];
+  const CARGOS_LISTA = [
+    {v:"11",l:"Prefeito"},
+    {v:"13",l:"Vereador"},
+    {v:"6", l:"Deputado Federal"},
+    {v:"7", l:"Deputado Estadual"},
+    {v:"5", l:"Senador"},
+    {v:"3", l:"Governador"},
+    {v:"1", l:"Presidente"},
+  ];
+
+  const buscar = async () => {
+    setCarregando(true); setErro(""); setSelecionado(null); setPagina(1);
+    try {
+      const params = new URLSearchParams({ ano, cargo });
+      if (uf) params.set("uf", uf);
+      if (busca) params.set("nome", busca);
+      const r = await fetch(`/api/eleicoes?${params}`);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setCandidatos(d.candidatos || []);
+    } catch(e) {
+      setErro(e.message);
+      setCandidatos([]);
+    }
+    setCarregando(false);
+  };
+
+  const abrirPerfil = async (cand) => {
+    setSelecionado(cand);
+    setBens([]);
+    if (!cand.cpf) return;
+    setCarregBens(true);
+    try {
+      const r = await fetch(`/api/bens-candidato?cpf=${cand.cpf}&ano=${ano}`);
+      const d = await r.json();
+      setBens(d.bens || []);
+    } catch{}
+    setCarregBens(false);
+  };
+
+  const paginados = candidatos.slice(0, pagina * POR_PAGINA);
+  const temMais   = paginados.length < candidatos.length;
+
+  const situacaoInfo = (sit) => SITUACAO_COR[sit?.toUpperCase?.()] || { cor:"#64748b", label: sit || "—" };
+
+  // ── Perfil do candidato ──
+  if (selecionado) {
+    const sit = situacaoInfo(selecionado.situacao);
+    const totalPatr = bens.reduce((s,b)=>s+b.valor,0);
+    return (
+      <div style={s.app}>
+        <div style={s.grid}/>
+        <NavBar telaAtual="eleicoes" setTela={setTela} setTema={setTema} tema={tema} s={s}/>
+        <div style={s.main}>
+          <button onClick={()=>setSelecionado(null)} style={{ display:"inline-flex",alignItems:"center",gap:"8px",background:"transparent",border:`1px solid ${T.cardBorder}`,color:T.textSecondary,padding:"9px 18px",borderRadius:"8px",fontSize:"11px",fontFamily:"'Space Grotesk',sans-serif",cursor:"pointer",fontWeight:"700",letterSpacing:"0.06em",marginBottom:"24px",transition:"all 0.15s" }}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="#e11d48";e.currentTarget.style.color="#e11d48";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=T.cardBorder;e.currentTarget.style.color=T.textSecondary;}}>
+            ← VOLTAR
+          </button>
+
+          {/* Hero candidato */}
+          <div style={{ background:T.cardBg,border:`1px solid ${sit.cor}25`,borderRadius:"16px",padding:"28px",marginBottom:"16px",position:"relative",overflow:"hidden" }}>
+            <div style={{ position:"absolute",top:0,right:0,width:"200px",height:"100%",background:`linear-gradient(to left,${sit.cor}08,transparent)`,pointerEvents:"none" }}/>
+            <div style={{ display:"flex",gap:"20px",alignItems:"flex-start",flexWrap:"wrap" }}>
+              <div style={{ width:"72px",height:"72px",borderRadius:"14px",background:`${sit.cor}15`,border:`2px solid ${sit.cor}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"32px",flexShrink:0 }}>
+                {selecionado.sexo?.includes("FEMININO") ? "👩" : "👤"}
+              </div>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:"9px",color:sit.cor,fontWeight:"800",letterSpacing:"0.15em",fontFamily:"'Space Mono',monospace",marginBottom:"6px" }}>
+                  {selecionado.cargo} · {selecionado.uf}{selecionado.municipio ? ` · ${selecionado.municipio}` : ""} · {ano}
+                </div>
+                <h1 style={{ margin:"0 0 8px",fontSize:"clamp(18px,3vw,26px)",fontWeight:"800",color:T.textPrimary,fontFamily:"'Space Grotesk',sans-serif",letterSpacing:"-0.02em" }}>
+                  {selecionado.nomeUrna || selecionado.nome}
+                </h1>
+                <div style={{ fontSize:"12px",color:T.textSecondary,marginBottom:"12px",fontFamily:"'Space Mono',monospace" }}>
+                  {selecionado.nomePartido} ({selecionado.partido}) · Nº {selecionado.numero}
+                </div>
+                <span style={{ display:"inline-block",padding:"4px 12px",background:`${sit.cor}18`,border:`1px solid ${sit.cor}35`,borderRadius:"6px",fontSize:"10px",color:sit.cor,fontWeight:"800",letterSpacing:"0.1em",fontFamily:"'Space Mono',monospace" }}>
+                  {sit.label}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cards de info */}
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:"10px",marginBottom:"20px" }}>
+            {[
+              { label:"PARTIDO",   valor:selecionado.partido,     icon:"🏛️", cor:"#8b5cf6" },
+              { label:"IDADE",     valor:selecionado.idade ? `${selecionado.idade} anos` : "—", icon:"📅", cor:"#06b6d4" },
+              { label:"INSTRUÇÃO", valor:selecionado.instrucao?.split(" ")?.[0] || "—", icon:"🎓", cor:"#f59e0b" },
+              { label:"OCUPAÇÃO",  valor:selecionado.ocupacao || "—", icon:"💼", cor:"#10b981" },
+              { label:"PATRIMÔNIO",valor:fmtPatrimonio(totalPatr), icon:"💰", cor:"#e11d48" },
+            ].map((info,i) => (
+              <div key={i} style={{ background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"10px",padding:"14px 16px" }}>
+                <div style={{ fontSize:"16px",marginBottom:"6px" }}>{info.icon}</div>
+                <div style={{ fontSize:"9px",color:T.textLabel,fontWeight:"700",letterSpacing:"0.12em",fontFamily:"'Space Mono',monospace",marginBottom:"4px" }}>{info.label}</div>
+                <div style={{ fontSize:"12px",fontWeight:"700",color:info.cor,fontFamily:"'Space Grotesk',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{info.valor}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bens declarados */}
+          <div style={{ background:T.cardBg,border:`1px solid ${T.cardBorder}`,borderRadius:"14px",padding:"20px",marginBottom:"16px" }}>
+            <div style={{ fontSize:"10px",color:T.textLabel,letterSpacing:"0.15em",fontWeight:"700",fontFamily:"'Space Mono',monospace",marginBottom:"14px" }}>
+              💰 BENS DECLARADOS AO TSE
+            </div>
+            {carregBens ? (
+              <div style={{ textAlign:"center",padding:"24px",color:T.textMuted,fontFamily:"'Space Mono',monospace",fontSize:"11px" }}>Carregando bens...</div>
+            ) : bens.length === 0 ? (
+              <div style={{ textAlign:"center",padding:"20px",color:T.textMuted,fontSize:"12px" }}>Nenhum bem declarado encontrado para este candidato.</div>
+            ) : (
+              <>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",padding:"10px 14px",background:"rgba(225,29,72,0.06)",border:"1px solid rgba(225,29,72,0.15)",borderRadius:"8px" }}>
+                  <span style={{ fontSize:"11px",color:T.textSecondary,fontFamily:"'Space Grotesk',sans-serif" }}>Total do patrimônio declarado</span>
+                  <span style={{ fontSize:"16px",fontWeight:"800",color:"#e11d48",fontFamily:"'Space Mono',monospace" }}>{fmtPatrimonio(totalPatr)}</span>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:"6px" }}>
+                  {bens.map((b,i) => (
+                    <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"8px",gap:"12px" }}>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:"11px",fontWeight:"700",color:T.textPrimary,fontFamily:"'Space Grotesk',sans-serif",marginBottom:"2px" }}>{b.tipo}</div>
+                        {b.detalhe && <div style={{ fontSize:"10px",color:T.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'Space Mono',monospace" }}>{b.detalhe}</div>}
+                      </div>
+                      <span style={{ fontSize:"12px",fontWeight:"800",color:b.valor>100000?"#f59e0b":T.textSecondary,fontFamily:"'Space Mono',monospace",flexShrink:0 }}>
+                        {fmtPatrimonio(b.valor)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Aviso fonte */}
+          <div style={{ fontSize:"10px",color:T.textMuted,textAlign:"center",fontFamily:"'Space Mono',monospace",padding:"8px" }}>
+            ✓ Dados oficiais — TSE via CEPESP/FGV · Declarações eleitorais públicas
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Lista de candidatos ──
+  return (
+    <div style={s.app}>
+      <div style={s.grid}/>
+      <NavBar telaAtual="eleicoes" setTela={setTela} setTema={setTema} tema={tema} s={s}/>
+      <div style={s.main}>
+
+        {/* Header */}
+        <div style={{ marginBottom:"24px" }}>
+          <div style={{ fontSize:"9px",color:"#e11d48",letterSpacing:"0.18em",marginBottom:"6px",fontWeight:"700",fontFamily:"'Space Mono',monospace" }}>
+            TSE · DADOS ELEITORAIS OFICIAIS
+          </div>
+          <h1 style={{ margin:"0 0 6px",fontSize:"clamp(20px,3vw,28px)",fontWeight:"800",color:T.textPrimary,fontFamily:"'Space Grotesk',sans-serif",letterSpacing:"-0.02em" }}>
+            Candidatos &amp; Eleições
+          </h1>
+          <p style={{ margin:0,fontSize:"12px",color:T.textSecondary }}>
+            Bens declarados, situação eleitoral e perfil de todos os candidatos — dados oficiais do TSE.
+          </p>
+        </div>
+
+        {/* Filtros de busca */}
+        <div style={{ background:T.subCardBg,border:`1px solid ${T.subCardBorder}`,borderRadius:"12px",padding:"16px",marginBottom:"20px" }}>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:"10px",marginBottom:"12px" }}>
+            <select value={ano} onChange={e=>setAno(e.target.value)} style={{ background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"8px",color:T.textPrimary,fontSize:"12px",fontFamily:"'Space Grotesk',sans-serif",padding:"9px 12px",cursor:"pointer",outline:"none" }}>
+              {ANOS_ELEICAO.map(a=><option key={a} value={a}>{a}</option>)}
+            </select>
+            <select value={cargo} onChange={e=>setCargo(e.target.value)} style={{ background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"8px",color:T.textPrimary,fontSize:"12px",fontFamily:"'Space Grotesk',sans-serif",padding:"9px 12px",cursor:"pointer",outline:"none" }}>
+              {CARGOS_LISTA.map(c=><option key={c.v} value={c.v}>{c.l}</option>)}
+            </select>
+            <select value={uf} onChange={e=>setUf(e.target.value)} style={{ background:T.selectBg,border:`1px solid ${T.inputBorder}`,borderRadius:"8px",color:T.textPrimary,fontSize:"12px",fontFamily:"'Space Grotesk',sans-serif",padding:"9px 12px",cursor:"pointer",outline:"none" }}>
+              <option value="">Todos os estados</option>
+              {["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"].map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+            <div style={{ display:"flex",alignItems:"center",gap:"8px",background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:"8px",padding:"9px 12px" }}>
+              <span style={{ color:T.textMuted }}><IconSearch/></span>
+              <input value={busca} onChange={e=>setBusca(e.target.value)} onKeyDown={e=>e.key==="Enter"&&buscar()} placeholder="Nome do candidato..." style={{ background:"transparent",border:"none",outline:"none",color:T.textPrimary,fontSize:"12px",fontFamily:"'Space Grotesk',sans-serif",width:"100%" }}/>
+            </div>
+          </div>
+          <button onClick={buscar} disabled={carregando} style={{ width:"100%",padding:"11px",background:"#e11d48",border:"none",borderRadius:"8px",color:"#fff",fontSize:"13px",fontFamily:"'Space Grotesk',sans-serif",fontWeight:"800",letterSpacing:"0.05em",cursor:"pointer",opacity:carregando?0.7:1,transition:"opacity 0.15s" }}>
+            {carregando ? "⏳ BUSCANDO DADOS NO TSE..." : "🔍 BUSCAR CANDIDATOS"}
+          </button>
+        </div>
+
+        {erro && (
+          <div style={{ background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:"10px",padding:"14px 18px",marginBottom:"16px",color:"#ef4444",fontSize:"12px",fontFamily:"'Space Mono',monospace" }}>
+            ⚠ {erro}
+          </div>
+        )}
+
+        {candidatos.length === 0 && !carregando && !erro && (
+          <div style={{ textAlign:"center",padding:"60px 24px",color:T.textMuted }}>
+            <div style={{ fontSize:"48px",marginBottom:"16px" }}>🗳️</div>
+            <div style={{ fontSize:"14px",fontWeight:"700",color:T.textSecondary,fontFamily:"'Space Grotesk',sans-serif",marginBottom:"8px" }}>Escolha ano, cargo e estado</div>
+            <div style={{ fontSize:"12px",fontFamily:"'Space Mono',monospace" }}>e clique em Buscar Candidatos</div>
+          </div>
+        )}
+
+        {candidatos.length > 0 && (
+          <>
+            <div style={{ fontSize:"10px",color:T.textLabel,marginBottom:"12px",letterSpacing:"0.08em",fontWeight:"700",fontFamily:"'Space Mono',monospace" }}>
+              {candidatos.length} CANDIDATOS ENCONTRADOS · MOSTRANDO {paginados.length}
+            </div>
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(310px,1fr))",gap:"8px",marginBottom:"16px" }}>
+              {paginados.map((c,i) => {
+                const sit = situacaoInfo(c.situacao);
+                return (
+                  <div key={i} onClick={()=>abrirPerfil(c)} style={{ display:"flex",alignItems:"center",gap:"14px",background:T.cardBg,border:`1px solid ${sit.cor}22`,borderLeft:`3px solid ${sit.cor}`,borderRadius:"10px",padding:"13px 16px",cursor:"pointer",transition:"all 0.2s" }}
+                    onMouseEnter={e=>{e.currentTarget.style.transform="translateX(3px)";e.currentTarget.style.boxShadow=`0 4px 20px ${sit.cor}20`;}}
+                    onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
+                    <div style={{ width:"40px",height:"40px",borderRadius:"8px",background:`${sit.cor}12`,border:`1px solid ${sit.cor}25`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0 }}>
+                      {c.sexo?.includes("FEMININO") ? "👩" : "👤"}
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:"13px",fontWeight:"700",color:T.textPrimary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontFamily:"'Space Grotesk',sans-serif" }}>{c.nomeUrna||c.nome}</div>
+                      <div style={{ fontSize:"10px",color:T.textSecondary,marginTop:"2px",fontFamily:"'Space Mono',monospace" }}>{c.partido} · {c.uf}{c.municipio?` · ${c.municipio}`:""}</div>
+                    </div>
+                    <div style={{ display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"4px",flexShrink:0 }}>
+                      <span style={{ fontSize:"9px",padding:"3px 8px",borderRadius:"4px",background:`${sit.cor}18`,color:sit.cor,fontWeight:"800",letterSpacing:"0.08em",border:`1px solid ${sit.cor}30`,fontFamily:"'Space Mono',monospace" }}>{sit.label}</span>
+                      <span style={{ fontSize:"9px",color:T.textMuted,fontFamily:"'Space Mono',monospace" }}>Nº {c.numero}</span>
+                    </div>
+                    <span style={{ color:T.textMuted,fontSize:"16px" }}>›</span>
+                  </div>
+                );
+              })}
+            </div>
+            {temMais && (
+              <button onClick={()=>setPagina(p=>p+1)} style={{ width:"100%",padding:"12px",background:"transparent",border:`1px solid ${T.cardBorder}`,borderRadius:"8px",color:T.textSecondary,fontSize:"12px",fontFamily:"'Space Grotesk',sans-serif",fontWeight:"700",cursor:"pointer",transition:"all 0.15s" }}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="#e11d48";e.currentTarget.style.color="#e11d48";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=T.cardBorder;e.currentTarget.style.color=T.textSecondary;}}>
+                Ver mais {Math.min(POR_PAGINA, candidatos.length - paginados.length)} candidatos →
+              </button>
+            )}
+            <div style={{ fontSize:"10px",color:T.textMuted,textAlign:"center",fontFamily:"'Space Mono',monospace",padding:"16px 8px 0" }}>
+              ✓ Fonte: TSE via CEPESP/FGV — dados oficiais e públicos
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ── Tela Home / Landing ───────────────────────────────────────────────────────
@@ -457,6 +736,7 @@ function TelaHome({ s, tema, setTema, setTela }) {
               { id:"senado",   icon:"🏛️", cor:"#8b5cf6", sub:"81 SENADORES",     titulo:"Senado Federal",         desc:"Votações nas principais pautas e gastos detalhados de cada senador." },
               { id:"votacoes", icon:"🗳️", cor:"#f59e0b", sub:"26 TEMAS",         titulo:"Votações Nominais",       desc:"Como cada parlamentar votou nos temas mais polêmicos do Congresso." },
               { id:"stf",      icon:"⚖️", cor:"#fbbf24", sub:"11 MINISTROS",     titulo:"STF",                     desc:"Quem indicou, até quando ficam e os votos nos casos históricos." },
+              { id:"eleicoes", icon:"🗳️", cor:"#6366f1", sub:"TSE · DADOS OFICIAIS", titulo:"Candidatos & Eleições",  desc:"Bens declarados, situação eleitoral e perfil completo de candidatos via TSE." },
               { id:"upload",   icon:"📄", cor:"#10b981", sub:"IA DETECTA TUDO",  titulo:"Analisar Documento",      desc:"Cole texto ou envie arquivo — IA encontra padrões suspeitos em segundos." },
             ].map(sec => (
               <div key={sec.id} onClick={()=>setTela(sec.id)} {...cardHoverFn(sec.cor)} style={{
@@ -2942,6 +3222,7 @@ export default function AntiCorrupcaoBR() {
   if (tela === "votacoes") return <TelaVotacoes s={s} tema={tema} setTema={setTema} setTela={setTela} />;
   if (tela === "senado") return <TelaSenado s={s} tema={tema} setTema={setTema} setTela={setTela} />;
   if (tela === "stf") return <TelaSTF s={s} tema={tema} setTema={setTema} setTela={setTela} />;
+  if (tela === "eleicoes") return <TelaEleicoes s={s} tema={tema} setTema={setTema} setTela={setTela} />;
 
   return (
     <div style={s.app}>
