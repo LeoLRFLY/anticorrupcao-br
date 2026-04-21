@@ -348,6 +348,7 @@ function TelaEleicoes({ s, setTela, tema, setTema }) {
       if (busca) params.set("nome", busca);
       const r = await fetch(`/api/eleicoes?${params}`);
       const d = await r.json();
+      if (d.erro) throw new Error(d.erro);
       if (d.error) throw new Error(d.error);
       setCandidatos(d.candidatos || []);
     } catch(e) {
@@ -3156,9 +3157,9 @@ export default function AntiCorrupcaoBR() {
           }
         }
 
-        // Classifica em lotes de 8
-        const LOTE = 8;
-        const MAX = Math.min(lista.length, 80);
+        // Classifica em lotes usando apenas regras locais (sem IA em bulk — evita rate limit 429)
+        const LOTE = 10;
+        const MAX = lista.length;
         for (let i = 0; i < MAX; i += LOTE) {
           const loteAtual = lista.slice(i, i + LOTE);
           await Promise.allSettled(loteAtual.map(async (dep) => {
@@ -3169,17 +3170,12 @@ export default function AntiCorrupcaoBR() {
               const totalGasto = despesas.reduce((s, x) => s + (x.valorLiquido || 0), 0);
               const classif = classificarLocal(despesas);
               setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classif, totalGasto } : x));
-              // Tenta IA
-              try {
-                const classifIA = await classificarDeputado(dep, despesas);
-                setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classifIA, totalGasto } : x));
-              } catch {}
             } catch {
               setDeputados(prev => prev.map(x => x.id === dep.id ? { ...x, ...classificarLocal([]), totalGasto: 0 } : x));
             }
           }));
           setProgresso(Math.min(99, Math.round(((i + LOTE) / MAX) * 100)));
-          await new Promise(r => setTimeout(r, 400));
+          await new Promise(r => setTimeout(r, 100));
         }
         setProgresso(100);
       } catch (e) {
