@@ -347,7 +347,8 @@ function TelaEleicoes({ s, setTela, tema, setTema }) {
       if (uf) params.set("uf", uf);
       if (busca) params.set("nome", busca);
       const r = await fetch(`/api/eleicoes?${params}`);
-      const d = await r.json();
+      let d;
+      try { d = await r.json(); } catch { throw new Error("Servidor indisponível. Tente novamente."); }
       if (d.erro) throw new Error(d.erro);
       if (d.error) throw new Error(d.error);
       setCandidatos(d.candidatos || []);
@@ -361,10 +362,15 @@ function TelaEleicoes({ s, setTela, tema, setTema }) {
   const abrirPerfil = async (cand) => {
     setSelecionado(cand);
     setBens([]);
-    if (!cand.cpf) return;
+    if (!cand.cpf && !cand.sequencial) return;
     setCarregBens(true);
     try {
-      const r = await fetch(`/api/bens-candidato?cpf=${cand.cpf}&ano=${ano}`);
+      const p = new URLSearchParams({ ano });
+      if (cand.cpf)          p.set("cpf",        cand.cpf);
+      if (cand.sequencial)   p.set("sequencial",  cand.sequencial);
+      if (cand.uf)           p.set("uf",          cand.uf);
+      if (cand.codigoEleicao) p.set("eleicao",   cand.codigoEleicao);
+      const r = await fetch(`/api/bens-candidato?${p}`);
       const d = await r.json();
       setBens(d.bens || []);
     } catch{}
