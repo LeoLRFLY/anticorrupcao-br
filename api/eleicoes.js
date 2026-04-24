@@ -10,7 +10,12 @@ const CARGO_LABELS = {
   "6":"Deputado Federal","7":"Deputado Estadual","11":"Prefeito","13":"Vereador",
 };
 
-// Headers que simulam requisição do próprio frontend do TSE
+// Eleições que ocorrem a cada ciclo no Brasil
+const ANO_MUNICIPAL = new Set(["2024","2020","2016","2012","2008"]);
+const ANO_FEDERAL   = new Set(["2022","2018","2014","2010","2006"]);
+const CARGO_MUNICIPAL = new Set(["11","13"]);
+const CARGO_FEDERAL   = new Set(["1","3","5","6","7"]);
+
 const TSE_HDR = {
   "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   "Accept":          "application/json, text/plain, */*",
@@ -25,19 +30,18 @@ const OUT_HDR = {
   "Cache-Control": "public, s-maxage=1800",
 };
 
-function timedFetch(url, opts = {}, ms = 10000) {
+// Máx total: ~4s TSE listing + 7s TSE candidatos + 4s CEPESP inicial + 7s CEPESP poll = 22s < 30s limit
+function timedFetch(url, opts = {}, ms = 4000) {
   const ctrl = new AbortController();
   const t    = setTimeout(() => ctrl.abort(), ms);
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
 }
 
-// Busca o código da eleição no TSE para um dado ano
-// Retorna { municipal: "619", federal: "546", ... } ou null se falhar
 async function getEleicaoCodigos(ano) {
-  const r = await timedFetch(`${TSE}/eleicao/listar/${ano}`, { headers: TSE_HDR }, 8000);
+  const r = await timedFetch(`${TSE}/eleicao/listar/${ano}`, { headers: TSE_HDR }, 4000);
   if (!r.ok) return null;
   const payload = await r.json();
-  const lista   = Array.isArray(payload) ? payload
+  const lista   = Array.isArray(payload)           ? payload
                 : Array.isArray(payload?.eleicoes) ? payload.eleicoes
                 : [];
 
@@ -64,10 +68,8 @@ function normalizarTSE(c, cargo, ano, codigoEleicao) {
   const grau      = c.grauInstrucao || {};
   const ocup      = c.ocupacao  || {};
   const sit       = c.situacaoTurno || {};
-  const loc       = c.localidade || {};
-
-  const uf = typeof loc === "string"   ? loc
-           : (loc.sigla ?? c.siglaUF   ?? (municipio.uf?.sigla ?? ""));
+  const loc       = c.localidade    || {};
+  const uf = typeof loc === "string" ? loc : (loc.sigla ?? c.siglaUF ?? (municipio.uf?.sigla ?? ""));
 
   return {
     sequencial:   c.sequencialCandidato || c.sequencial || "",
@@ -93,14 +95,14 @@ function normalizarTSE(c, cargo, ano, codigoEleicao) {
 }
 
 // ── CEPESP fallback ──────────────────────────────────────────────────────────
-async function pollCepesp(queryId, maxMs = 12000) {
+async function pollCepesp(queryId, maxMs = 7000) {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1000));
     try {
       const r = await timedFetch(`${CEPESP}/athena/query/${queryId}`, {
         headers: { "User-Agent": "anticorrupcao-br/1.0" },
-      }, 5000);
+      }, 3000);
       if (!r.ok) break;
       const d = await r.json();
       const ok = d.last_status === "SUCCEEDED" || d.last_status === "SUCCESS";
@@ -125,7 +127,7 @@ async function buscarCepesp(ano, cargo, uf, nome) {
 
   const res = await timedFetch(`${CEPESP}/athena/query?${qs}`, {
     headers: { "User-Agent": "anticorrupcao-br/1.0" },
-  }, 8000);
+  }, 4000);
   if (!res.ok) return null;
 
   const raw  = await res.json();
@@ -166,29 +168,49 @@ export default async function handler(req) {
   const uf    = (searchParams.get("uf")    || "").toUpperCase();
   const nome  = (searchParams.get("nome")  || "").trim();
 
+  // Validação: anos municipais só têm Prefeito/Vereador; anos federais só têm cargos federais
+  if (ANO_MUNICIPAL.has(ano) && CARGO_FEDERAL.has(cargo)) {
+    return new Response(
+      JSON.stringify({
+        erro: `Em ${ano} ocorreram apenas eleições municipais (Prefeito e Vereador). Para ${CARGO_LABELS[cargo]}, selecione um ano federal (2022, 2018…).`,
+        candidatos: [],
+      }),
+      { status: 200, headers: OUT_HDR }
+    );
+  }
+  if (ANO_FEDERAL.has(ano) && CARGO_MUNICIPAL.has(cargo)) {
+    return new Response(
+      JSON.stringify({
+        erro: `Em ${ano} ocorreram apenas eleições federais/estaduais. Para ${CARGO_LABELS[cargo]}, selecione um ano municipal (2024, 2020…).`,
+        candidatos: [],
+      }),
+      { status: 200, headers: OUT_HDR }
+    );
+  }
+
   const debug = [];
 
   // ── 1. TSE DivulgaCandContas ─────────────────────────────────────────────
   try {
     const codigos = await getEleicaoCodigos(ano);
     if (!codigos) {
-      debug.push(`TSE /eleicao/listar/${ano} retornou erro`);
+      debug.push(`TSE /eleicao/listar/${ano} retornou erro ou timeout`);
     } else {
-      const isMunicipal = ["11","13"].includes(cargo);
-      const isNacional  = cargo === "1";
+      const isMunicipal   = CARGO_MUNICIPAL.has(cargo);
+      const isNacional    = cargo === "1";
       const codigoEleicao = isMunicipal ? (codigos.municipal1 || codigos.municipal2)
                           : isNacional  ? (codigos.federal1   || codigos.municipal1)
                           :               (codigos.federal1);
 
       if (!codigoEleicao) {
-        debug.push(`TSE: sem código de eleição para cargo ${cargo} em ${ano}. Eleições disponíveis: ${JSON.stringify(codigos._lista)}`);
+        debug.push(`TSE: sem código para cargo ${cargo} em ${ano}. Disponíveis: ${JSON.stringify(codigos._lista)}`);
       } else {
         const ufParam = isNacional ? "BR" : (uf || "BR");
         const url     = `${TSE}/candidatura/listar/${ano}/${ufParam}/${codigoEleicao}/${cargo}/candidatos`;
 
-        const r = await timedFetch(url, { headers: TSE_HDR }, 12000);
+        const r = await timedFetch(url, { headers: TSE_HDR }, 7000);
         if (!r.ok) {
-          debug.push(`TSE candidatos ${r.status}: ${url}`);
+          debug.push(`TSE candidatos HTTP ${r.status}: ${url}`);
         } else {
           const data = await r.json();
           const rows = data.candidatos || data.data || (Array.isArray(data) ? data : []);
@@ -229,6 +251,6 @@ export default async function handler(req) {
       candidatos: [],
       debug,
     }),
-    { status: 202, headers: OUT_HDR }
+    { status: 200, headers: OUT_HDR }
   );
 }

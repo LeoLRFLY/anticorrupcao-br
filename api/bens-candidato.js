@@ -20,7 +20,7 @@ const OUT_HDR = {
   "Cache-Control": "public, s-maxage=3600",
 };
 
-function timedFetch(url, opts = {}, ms = 12000) {
+function timedFetch(url, opts = {}, ms = 6000) {
   const ctrl = new AbortController();
   const t    = setTimeout(() => ctrl.abort(), ms);
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
@@ -52,7 +52,7 @@ export default async function handler(req) {
   if (sequencial && uf && eleicao) {
     try {
       const url = `${TSE}/candidatura/buscar/${ano}/${uf}/${eleicao}/candidato/${sequencial}`;
-      const r   = await timedFetch(url, { headers: TSE_HDR }, 12000);
+      const r   = await timedFetch(url, { headers: TSE_HDR }, 8000);
       if (r.ok) {
         const data      = await r.json();
         const candidato = data.candidato || data;
@@ -86,7 +86,7 @@ export default async function handler(req) {
 
     const res = await timedFetch(`${CEPESP}?${params}`, {
       headers: { "User-Agent": "anticorrupcao-br/1.0" },
-    }, 15000);
+    }, 6000);
 
     if (!res.ok) throw new Error(`CEPESP ${res.status}`);
     const raw  = await res.json();
