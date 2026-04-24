@@ -323,6 +323,7 @@ function TelaEleicoes({ s, setTela, tema, setTema }) {
   const [candidatos,setCandidatos]= useState([]);
   const [carregando,setCarregando]= useState(false);
   const [erro,      setErro]      = useState("");
+  const [debugInfo, setDebugInfo] = useState([]);
   const [pagina,    setPagina]    = useState(1);
   const [selecionado,setSelecionado]=useState(null);
   const [bens,      setBens]      = useState([]);
@@ -341,7 +342,7 @@ function TelaEleicoes({ s, setTela, tema, setTema }) {
   ];
 
   const buscar = async () => {
-    setCarregando(true); setErro(""); setSelecionado(null); setPagina(1);
+    setCarregando(true); setErro(""); setDebugInfo([]); setSelecionado(null); setPagina(1);
     try {
       const params = new URLSearchParams({ ano, cargo });
       if (uf) params.set("uf", uf);
@@ -349,6 +350,7 @@ function TelaEleicoes({ s, setTela, tema, setTema }) {
       const r = await fetch(`/api/eleicoes?${params}`);
       let d;
       try { d = await r.json(); } catch { throw new Error("Servidor indisponível. Tente novamente."); }
+      if (d.debug) setDebugInfo(d.debug);
       if (d.erro) throw new Error(d.erro);
       if (d.error) throw new Error(d.error);
       setCandidatos(d.candidatos || []);
@@ -524,7 +526,12 @@ function TelaEleicoes({ s, setTela, tema, setTema }) {
 
         {erro && (
           <div style={{ background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:"10px",padding:"14px 18px",marginBottom:"16px",color:"#ef4444",fontSize:"12px",fontFamily:"'Space Mono',monospace" }}>
-            ⚠ {erro}
+            <div>⚠ {erro}</div>
+            {debugInfo.length > 0 && (
+              <div style={{ marginTop:"10px",borderTop:"1px solid rgba(239,68,68,0.2)",paddingTop:"10px",fontSize:"10px",opacity:0.7 }}>
+                {debugInfo.map((d,i) => <div key={i}>{d}</div>)}
+              </div>
+            )}
           </div>
         )}
 
