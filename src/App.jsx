@@ -2729,13 +2729,11 @@ function TelaSTF({ s, tema, setTema, setTela }) {
             )}
           </div>
         )}
-        )}
       </div>
     </div>
   );
 }
 
-// ── Tela Perfil Deputado ──────────────────────────────────────────────────────
 // ── Tela Perfil Deputado ──────────────────────────────────────────────────────
 function TelaPerfilDeputado({ dep, onVoltar, s, tema, setTema }) {
   const T = s.T; const dark = tema === "dark";
